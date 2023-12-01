@@ -30,7 +30,7 @@ macro_rules! register_days {
 
 // === Register days here! ===
 register_days! {
-    01 silver,
+    01 gold,
 }
 
 fn run_timed<T, F>(fun: F) -> (T, std::time::Duration)
@@ -61,13 +61,15 @@ pub trait SolutionSilver<TSilver: Display> {
 }
 
 pub trait SolutionGold<TSilver: Display, TGold: Display>: SolutionSilver<TSilver> {
+    const INPUT_SAMPLE_GOLD: &'static str = Self::INPUT_SAMPLE;
+
     fn execute() {
         let (output, time) = run_timed(|| Self::calculate_silver(Self::INPUT_SAMPLE));
         println!("Day {}, silver (sample): {output} ({time:?})", Self::DAY);
         let (output, time) = run_timed(|| Self::calculate_silver(Self::INPUT_REAL));
         println!("Day {}, silver: {output} ({time:?})", Self::DAY);
 
-        let (output, time) = run_timed(|| Self::calculate_gold(Self::INPUT_SAMPLE));
+        let (output, time) = run_timed(|| Self::calculate_gold(Self::INPUT_SAMPLE_GOLD));
         println!("Day {}, gold (sample): {output} ({time:?})", Self::DAY);
         let (output, time) = run_timed(|| Self::calculate_gold(Self::INPUT_REAL));
         println!("Day {}, gold: {output} ({time:?})", Self::DAY);
