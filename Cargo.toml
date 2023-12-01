@@ -29,7 +29,6 @@ day01 = []
 default = ["day01"]
 profile = []
 
-# TODO: uncomment after finishing day 1
-# [[bench]]
-# name = "criterion"
-# harness = false
+[[bench]]
+name = "criterion"
+harness = false
