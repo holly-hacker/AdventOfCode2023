@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::utils::fast_parse_int;
 
 use super::*;
 
@@ -13,32 +13,37 @@ impl SolutionSilver<usize> for Day {
         input
             .lines()
             .filter_map(|l| {
-                let (id, game) = l.split_once(": ").unwrap();
+                let (id, game) = l.split_at("Game ".len()).1.split_once(": ").unwrap();
 
                 game.split("; ")
                     .all(|set| {
-                        let map = set
-                            .split(", ")
-                            .map(|draw| {
-                                let (num, col) = draw.split_once(' ').unwrap();
+                        let mut red = 0;
+                        let mut green = 0;
+                        let mut blue = 0;
 
-                                (col, num.parse::<usize>().unwrap())
-                            })
-                            .collect::<HashMap<&str, usize>>();
+                        set.split(", ").for_each(|draw| {
+                            let (num, col) = draw.split_once(' ').unwrap();
+                            let num = fast_parse_int(num);
 
-                        !((map.get("red").cloned()).unwrap_or_default() > 12
-                            || (map.get("green").cloned()).unwrap_or_default() > 13
-                            || (map.get("blue").cloned()).unwrap_or_default() > 14)
+                            match col.as_bytes()[0] {
+                                b'r' => red = num,
+                                b'g' => green = num,
+                                b'b' => blue = num,
+                                _ => {
+                                    debug_assert!(false, "Unknown color: {col}");
+                                }
+                            }
+                        });
+
+                        red <= 12 && green <= 13 && blue <= 14
                     })
-                    .then(|| (id.split_once(' ').unwrap().1).parse::<usize>().unwrap())
+                    .then(|| fast_parse_int(id))
             })
             .sum()
     }
 }
 
 impl SolutionGold<usize, usize> for Day {
-    // const INPUT_SAMPLE_GOLD: &'static str = include_str!("input_sample_gold.txt");
-
     fn calculate_gold(input: &str) -> usize {
         input
             .lines()
@@ -46,20 +51,25 @@ impl SolutionGold<usize, usize> for Day {
                 let (_, game) = l.split_once(": ").unwrap();
 
                 let folded = game.split("; ").fold((0, 0, 0), |acc, set| {
-                    let map = set
-                        .split(", ")
-                        .map(|draw| {
-                            let (num, col) = draw.split_once(' ').unwrap();
+                    let mut red = 0;
+                    let mut green = 0;
+                    let mut blue = 0;
 
-                            (col, num.parse::<usize>().unwrap())
-                        })
-                        .collect::<HashMap<&str, usize>>();
+                    set.split(", ").for_each(|draw| {
+                        let (num, col) = draw.split_once(' ').unwrap();
+                        let num = fast_parse_int(num);
 
-                    (
-                        usize::max((map.get("red").cloned()).unwrap_or_default(), acc.0),
-                        usize::max((map.get("green").cloned()).unwrap_or_default(), acc.1),
-                        usize::max((map.get("blue").cloned()).unwrap_or_default(), acc.2),
-                    )
+                        match col.as_bytes()[0] {
+                            b'r' => red = num,
+                            b'g' => green = num,
+                            b'b' => blue = num,
+                            _ => {
+                                debug_assert!(false, "Unknown color: {col}");
+                            }
+                        }
+                    });
+
+                    (acc.0.max(red), acc.1.max(green), acc.2.max(blue))
                 });
 
                 folded.0 * folded.1 * folded.2
