@@ -27,7 +27,8 @@ debug = true
 [features]
 day01 = []
 day02 = []
-default = ["day01", "day02"]
+day03 = []
+default = ["day01", "day02", "day03"]
 profile = []
 
 [[bench]]
