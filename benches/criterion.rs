@@ -21,7 +21,7 @@ macro_rules! gen_benchmarks {
                     });
                     c.bench_function(&format!("Day {} gold (sample)", stringify!($day_index)), |b| {
                         use [<day $day_index>]::Day;
-                        b.iter(|| Day::calculate_gold(black_box(Day::INPUT_SAMPLE)))
+                        b.iter(|| Day::calculate_gold(black_box(Day::INPUT_SAMPLE_GOLD)))
                     });
                     c.bench_function(&format!("Day {} gold (real)", stringify!($day_index)), |b| {
                         use [<day $day_index>]::Day;
