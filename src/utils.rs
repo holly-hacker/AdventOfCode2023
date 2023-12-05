@@ -6,7 +6,7 @@
 pub fn fast_parse_int(s: &str) -> usize {
     debug_assert!(!s.is_empty());
     debug_assert!(s.len() < usize::MAX.to_string().len()); // err on the side of caution
-    debug_assert!(s.chars().all(|c| c.is_ascii_digit()));
+    debug_assert!(s.chars().all(|c| c == ' ' || c.is_ascii_digit()));
 
     s.bytes().fold(0, |a, c| a * 10 + (c & 0x0f) as usize)
 }
@@ -18,7 +18,7 @@ pub fn fast_parse_int(s: &str) -> usize {
 pub fn fast_parse_int_from_bytes(s: &[u8]) -> usize {
     debug_assert!(!s.is_empty());
     debug_assert!(s.len() < usize::MAX.to_string().len()); // err on the side of caution
-    debug_assert!(s.iter().all(u8::is_ascii_digit));
+    debug_assert!(s.iter().all(|b| *b == b' ' || b.is_ascii_digit()));
 
     s.iter().fold(0, |a, c| a * 10 + (c & 0x0f) as usize)
 }
@@ -67,6 +67,7 @@ mod tests {
         assert_eq!(fast_parse_int("0001"), 1);
         assert_eq!(fast_parse_int("0000"), 0);
         assert_eq!(fast_parse_int("12345678"), 12345678);
+        assert_eq!(fast_parse_int(" 1"), 1); // handle leading whitespace
     }
 
     #[test]
@@ -77,6 +78,7 @@ mod tests {
         assert_eq!(fast_parse_int_from_bytes(b"0001"), 1);
         assert_eq!(fast_parse_int_from_bytes(b"0000"), 0);
         assert_eq!(fast_parse_int_from_bytes(b"12345678"), 12345678);
+        assert_eq!(fast_parse_int_from_bytes(b" 1"), 1); // handle leading whitespace
     }
 
     #[test]

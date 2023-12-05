@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::VecDeque;
 
 use super::*;
 
@@ -13,25 +13,30 @@ impl SolutionSilver<usize> for Day {
         input
             .lines()
             .map(|line| {
-                let (_, line) = line.split_once(':').unwrap();
-                let (good, gotten) = line.split_once(" | ").unwrap();
-                let good_nums = good
-                    .split(' ')
-                    .flat_map(|num| num.parse::<usize>())
-                    .collect::<HashSet<_>>();
-                let gotten_nums = gotten
-                    .split(' ')
-                    .flat_map(|num| num.parse::<usize>())
-                    .collect::<HashSet<_>>();
+                let (_, line) = line.split_once(": ").unwrap();
+                let (want, have) = line.split_once(" | ").unwrap();
 
-                // intersect
-                let count = gotten_nums
-                    .iter()
-                    .filter(|gotten_num| good_nums.contains(gotten_num))
+                // create a lookup table for the winning numbers
+                // this is faster than iterating over a collection
+                let mut lut = [false; 100];
+                want.as_bytes()
+                    .chunks(3)
+                    // NOTE: space is 0x20 which would become 0, no need to check for that :)
+                    .map(|c| (c[0] & 0x0F) * 10 + (c[1] & 0x0F))
+                    .for_each(|b| {
+                        lut[b as usize] = true;
+                    });
+
+                // create iterator to parse gotten numbers
+                let matches = have
+                    .as_bytes()
+                    .chunks(3)
+                    .map(|c| (c[0] & 0x0F) * 10 + (c[1] & 0x0F))
+                    .filter(|gotten_num| lut[*gotten_num as usize])
                     .count();
 
-                if count > 0 {
-                    usize::pow(2, (count - 1) as u32)
+                if matches > 0 {
+                    1 << (matches - 1) as u32
                 } else {
                     0
                 }
@@ -42,35 +47,43 @@ impl SolutionSilver<usize> for Day {
 
 impl SolutionGold<usize, usize> for Day {
     fn calculate_gold(input: &str) -> usize {
-        let mut scratchcard_count = HashMap::<usize, usize>::new();
-        input.lines().enumerate().for_each(|(idx, line)| {
-            let card_no = idx + 1;
-            *scratchcard_count.entry(card_no).or_default() += 1;
-            let current_count = scratchcard_count.get(&card_no).cloned().unwrap_or_default();
+        let mut next_scratchcard_count = VecDeque::<usize>::new();
 
-            let (_, line) = line.split_once(':').unwrap();
-            let (good, gotten) = line.split_once(" | ").unwrap();
-            let good_nums = good
-                .split(' ')
-                .flat_map(|num| num.parse::<usize>())
-                .collect::<HashSet<_>>();
-            let gotten_nums = gotten
-                .split(' ')
-                .flat_map(|num| num.parse::<usize>())
-                .collect::<HashSet<_>>();
+        input
+            .lines()
+            .map(|line| {
+                let (_, line) = line.split_once(": ").unwrap();
+                let (want, have) = line.split_once(" | ").unwrap();
 
-            // intersect
-            let count = gotten_nums
-                .iter()
-                .filter(|gotten_num| good_nums.contains(gotten_num))
-                .count();
+                // create a lookup table for the winning numbers
+                // this is faster than iterating over a collection
+                let mut lut = [false; 100];
+                want.as_bytes()
+                    .chunks(3)
+                    // NOTE: space is 0x20 which would become 0, no need to check for that :)
+                    .map(|c| (c[0] & 0x0F) * 10 + (c[1] & 0x0F))
+                    .for_each(|b| {
+                        lut[b as usize] = true;
+                    });
 
-            for i in 0..count {
-                *scratchcard_count.entry(card_no + i + 1).or_default() += current_count;
-            }
-        });
+                // create iterator to parse gotten numbers
+                let matches = have
+                    .as_bytes()
+                    .chunks(3)
+                    .map(|c| (c[0] & 0x0F) * 10 + (c[1] & 0x0F))
+                    .filter(|gotten_num| lut[*gotten_num as usize])
+                    .count();
 
-        scratchcard_count.values().sum()
+                let current_count = next_scratchcard_count.pop_front().unwrap_or_default() + 1;
+                for i in 0..matches {
+                    if next_scratchcard_count.len() < i + 1 {
+                        next_scratchcard_count.push_back(0);
+                    }
+                    next_scratchcard_count[i] += current_count;
+                }
+                current_count
+            })
+            .sum()
     }
 }
 
