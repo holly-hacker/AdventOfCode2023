@@ -14,27 +14,36 @@ impl SolutionSilver<usize> for Day {
         let times = time.as_bytes()[11..]
             .split(|b| *b == b' ')
             .filter(|s| !s.is_empty())
-            .map(fast_parse_int_from_bytes)
-            .collect::<Vec<_>>();
+            .map(fast_parse_int_from_bytes);
         let distances = distance.as_bytes()[11..]
             .split(|b| *b == b' ')
             .filter(|s| !s.is_empty())
-            .map(fast_parse_int_from_bytes)
-            .collect::<Vec<_>>();
+            .map(fast_parse_int_from_bytes);
 
         times
             .into_iter()
             .zip(distances)
             .map(|(t, d)| {
-                let mut count = 0;
-                for push_time in 0..t {
-                    let travel = push_time * (t - push_time);
-                    if travel > d {
-                        count += 1
-                    }
-                }
+                // find push_time so that push_time * (t-push_time) > d
+                // push_time*t - push_time^2 > d
+                // push_time^2 - push_time*t - d == 0 (rounded somehow)
 
-                count
+                // formula for second-degree polynomial is (-b +- sqrt(b^2 - 4ac)) / 2a
+
+                let a = 1.;
+                let b = t as f32;
+                let c = d as f32;
+                let x1 = (b + f32::sqrt(b * b - 4. * a * c)) / (2. * a);
+                let x2 = (b - f32::sqrt(b * b - 4. * a * c)) / (2. * a);
+
+                debug_assert!((x1 * b - x1 * x1 - c).abs() < 0.001);
+                debug_assert!((x2 * b - x2 * x2 - c).abs() < 0.001);
+
+                let (x_min, x_max) = (x1.min(x2), x1.max(x2));
+                let x_min = (x_min + 1.).floor();
+                let x_max = (x_max - 1.).ceil();
+
+                (x_max - x_min + 1.) as usize
             })
             .product()
     }
@@ -46,32 +55,40 @@ impl SolutionGold<usize, usize> for Day {
         let times = time.as_bytes()[11..]
             .split(|b| *b == b' ')
             .filter(|s| !s.is_empty())
-            .map(fast_parse_int_from_bytes)
-            .collect::<Vec<_>>();
+            .map(fast_parse_int_from_bytes);
         let distances = distance.as_bytes()[11..]
             .split(|b| *b == b' ')
             .filter(|s| !s.is_empty())
-            .map(fast_parse_int_from_bytes)
-            .collect::<Vec<_>>();
+            .map(fast_parse_int_from_bytes);
 
         let (t, d) = times.into_iter().zip(distances).fold((0, 0), |acc, val| {
             (
-                format!("{}{}", acc.0, val.0).parse::<usize>().unwrap(),
-                format!("{}{}", acc.1, val.1).parse::<usize>().unwrap(),
+                acc.0 * 10f32.powi((val.0 as f32).log10() as i32 + 1) as usize + val.0,
+                acc.1 * 10f32.powi((val.1 as f32).log10() as i32 + 1) as usize + val.1,
             )
         });
 
-        {
-            let mut count = 0;
-            for push_time in 0..t {
-                let travel = push_time * (t - push_time);
-                if travel > d {
-                    count += 1
-                }
-            }
+        // find push_time so that push_time * (t-push_time) > d
+        // push_time*t - push_time^2 > d
+        // push_time^2 - push_time*t - d == 0 (rounded somehow)
 
-            count
-        }
+        // formula for second-degree polynomial is (-b +- sqrt(b^2 - 4ac)) / 2a
+
+        // NOTE: the numbers in part 2 are a lot larger so 64-bit floats are required
+        let a = 1.;
+        let b = t as f64;
+        let c = d as f64;
+        let x1 = (b + f64::sqrt(b * b - 4. * a * c)) / (2. * a);
+        let x2 = (b - f64::sqrt(b * b - 4. * a * c)) / (2. * a);
+
+        debug_assert!((x1 * b - x1 * x1 - c).abs() < 0.001);
+        debug_assert!((x2 * b - x2 * x2 - c).abs() < 0.001);
+
+        let (x_min, x_max) = (x1.min(x2), x1.max(x2));
+        let x_min = (x_min + 1.).floor();
+        let x_max = (x_max - 1.).ceil();
+
+        (x_max - x_min + 1.) as usize
     }
 }
 
