@@ -1,4 +1,6 @@
-use std::collections::{HashMap, HashSet};
+#![allow(clippy::naive_bytecount)]
+
+use std::collections::BTreeMap;
 
 use crate::utils::fast_parse_int_from_bytes;
 
@@ -12,78 +14,30 @@ impl SolutionSilver<usize> for Day {
     const INPUT_REAL: &'static str = include_str!("input_real.txt");
 
     fn calculate_silver(input: &str) -> usize {
-        let mut plays = input
+        let plays = input
             .lines()
             .map(|l| {
                 let (hand, score) = l.split_once(' ').unwrap();
-                let score = score.parse::<usize>().unwrap();
+                let score = fast_parse_int_from_bytes(score.as_bytes());
+
+                debug_assert_eq!(5, hand.len());
+                let hand: [u8; 5] = hand.as_bytes().try_into().unwrap();
+                let hand = hand.map(|b| match b {
+                    b'A' => 14,
+                    b'K' => 13,
+                    b'Q' => 12,
+                    b'J' => 11,
+                    b'T' => 10,
+                    b => b & 0x0F,
+                });
+
                 (hand, score)
             })
-            .collect::<Vec<(_, _)>>();
-
-        fn get_hand_rank(hand: &str) -> usize {
-            assert_eq!(hand.len(), 5);
-
-            let char_count = hand.chars().fold(HashMap::<char, usize>::new(), |acc, a| {
-                let mut acc = acc;
-                let count = acc.entry(a).or_insert(0);
-                *count += 1;
-                acc
-            });
-
-            if char_count.values().any(|v| *v == 5) {
-                return 6; // 5 of a kind
-            }
-            if char_count.values().any(|v| *v == 4) {
-                return 5; // 4 of a kind
-            }
-            if char_count.values().any(|v| *v == 3) && char_count.values().any(|v| *v == 2) {
-                return 4; // full house
-            }
-            if char_count.values().any(|v| *v == 3) {
-                return 3; // 3 of a kind
-            }
-            if char_count.values().filter(|v| **v == 2).count() == 2 {
-                return 2; // 2 pair
-            }
-            if char_count.values().any(|v| *v == 2) {
-                return 1; // pair
-            }
-
-            0
-        }
-
-        fn get_value(c: char) -> usize {
-            match c {
-                'A' => 14,
-                'K' => 13,
-                'Q' => 12,
-                'J' => 11,
-                'T' => 10,
-                _ => fast_parse_int_from_bytes(&[c as u8]),
-            }
-        }
-
-        plays.sort_by(|(hand1, _), (hand2, _)| {
-            let hand1_rank = get_hand_rank(hand1);
-            let hand2_rank = get_hand_rank(hand2);
-            match hand1_rank.cmp(&hand2_rank) {
-                std::cmp::Ordering::Equal => hand1
-                    .chars()
-                    .zip(hand2.chars())
-                    .filter_map(|(a, b)| {
-                        let a = get_value(a);
-                        let b = get_value(b);
-                        match a.cmp(&b) {
-                            std::cmp::Ordering::Equal => None,
-                            o => Some(o),
-                        }
-                    })
-                    .next()
-                    .unwrap_or(std::cmp::Ordering::Equal),
-                o => o,
-            }
-        });
+            .map(|(hand, score)| {
+                let hand_type = get_hand_rank_1(hand);
+                ((hand_type, hand), score)
+            })
+            .collect::<BTreeMap<(_, _), _>>();
 
         plays
             .into_iter()
@@ -91,50 +45,62 @@ impl SolutionSilver<usize> for Day {
             .map(|(i, (_, val))| (i + 1) * val)
             .sum()
     }
+}
+
+fn get_hand_rank_1(hand: [u8; 5]) -> usize {
+    let mut char_count_lut = [0u8; 15];
+    for char in &hand {
+        char_count_lut[*char as usize] += 1;
+    }
+
+    if char_count_lut.iter().any(|v| *v == 5) {
+        return 6; // 5 of a kind
+    }
+    if char_count_lut.iter().any(|v| *v == 4) {
+        return 5; // 4 of a kind
+    }
+    if char_count_lut.iter().any(|v| *v == 3) && char_count_lut.iter().any(|v| *v == 2) {
+        return 4; // full house
+    }
+    if char_count_lut.iter().any(|v| *v == 3) {
+        return 3; // 3 of a kind
+    }
+    if char_count_lut.iter().filter(|v| **v == 2).count() == 2 {
+        return 2; // 2 pair
+    }
+    if char_count_lut.iter().any(|v| *v == 2) {
+        return 1; // pair
+    }
+
+    0
 }
 
 impl SolutionGold<usize, usize> for Day {
     fn calculate_gold(input: &str) -> usize {
-        let mut plays = input
+        let plays = input
             .lines()
             .map(|l| {
                 let (hand, score) = l.split_once(' ').unwrap();
-                let score = score.parse::<usize>().unwrap();
+                let score = fast_parse_int_from_bytes(score.as_bytes());
+
+                debug_assert_eq!(5, hand.len());
+                let hand: [u8; 5] = hand.as_bytes().try_into().unwrap();
+                let hand = hand.map(|b| match b {
+                    b'A' => 13,
+                    b'K' => 12,
+                    b'Q' => 11,
+                    b'T' => 10,
+                    b'J' => 1,
+                    b => b & 0x0F,
+                });
+
                 (hand, score)
             })
-            .collect::<Vec<(_, _)>>();
-
-        fn get_value(c: char) -> usize {
-            match c {
-                'A' => 14,
-                'K' => 13,
-                'Q' => 12,
-                'J' => 1,
-                'T' => 10,
-                _ => fast_parse_int_from_bytes(&[c as u8]),
-            }
-        }
-
-        plays.sort_by(|(hand1, _), (hand2, _)| {
-            let hand1_rank = get_hand_rank_2(hand1);
-            let hand2_rank = get_hand_rank_2(hand2);
-            match hand1_rank.cmp(&hand2_rank) {
-                std::cmp::Ordering::Equal => hand1
-                    .chars()
-                    .zip(hand2.chars())
-                    .filter_map(|(a, b)| {
-                        let a = get_value(a);
-                        let b = get_value(b);
-                        match a.cmp(&b) {
-                            std::cmp::Ordering::Equal => None,
-                            o => Some(o),
-                        }
-                    })
-                    .next()
-                    .unwrap_or(std::cmp::Ordering::Equal),
-                o => o,
-            }
-        });
+            .map(|(hand, score)| {
+                let hand_type = get_hand_rank_2(hand);
+                ((hand_type, hand), score)
+            })
+            .collect::<BTreeMap<(_, _), _>>();
 
         plays
             .into_iter()
@@ -144,63 +110,51 @@ impl SolutionGold<usize, usize> for Day {
     }
 }
 
-fn get_hand_rank_2(hand: &str) -> usize {
-    assert_eq!(hand.len(), 5);
-
-    let char_count = hand.chars().fold(HashMap::<char, usize>::new(), |acc, a| {
-        let mut acc = acc;
-
-        if a == 'J' {
-            *acc.entry('2').or_insert(0) += 1;
-            *acc.entry('3').or_insert(0) += 1;
-            *acc.entry('4').or_insert(0) += 1;
-            *acc.entry('5').or_insert(0) += 1;
-            *acc.entry('6').or_insert(0) += 1;
-            *acc.entry('7').or_insert(0) += 1;
-            *acc.entry('8').or_insert(0) += 1;
-            *acc.entry('9').or_insert(0) += 1;
-            *acc.entry('T').or_insert(0) += 1;
-            // *acc.entry('J').or_insert(0) += 1;
-            *acc.entry('Q').or_insert(0) += 1;
-            *acc.entry('K').or_insert(0) += 1;
-            *acc.entry('A').or_insert(0) += 1;
+fn get_hand_rank_2(hand: [u8; 5]) -> usize {
+    let mut card_lut = [0u8; 12];
+    for char in &hand {
+        if *char == 1 {
+            // joker
+            card_lut[0] += 1;
+            card_lut[1] += 1;
+            card_lut[2] += 1;
+            card_lut[3] += 1;
+            card_lut[4] += 1;
+            card_lut[5] += 1;
+            card_lut[6] += 1;
+            card_lut[7] += 1;
+            card_lut[8] += 1;
+            card_lut[9] += 1;
+            card_lut[10] += 1;
+            card_lut[11] += 1;
         } else {
-            *acc.entry(a).or_insert(0) += 1;
+            card_lut[*char as usize - 2] += 1;
         }
+    }
 
-        acc
-    });
+    let card_bitmap = hand.iter().fold(0, |acc, b| acc | 1usize << b);
+    let card_types_no_joker = (card_bitmap & !0b10).count_ones() as usize;
+    let joker_count = hand.iter().filter(|c| **c == 1).count();
 
-    // AAJBB -> full house
-    // AJJJ2 -> 4 of a kind
-    // ABCJJ -> not full house
-    // 1234J -> not 2 pair!
-    // the way to know if we have a full house with this method is to check if we have
-    // exactly 2 different cards, and both have a count of at least 2
-    let card_type_count_without_jokers = hand.chars().filter(|c| *c != 'J').collect::<HashSet<_>>();
-    let joker_count = hand.chars().filter(|c| *c == 'J').count();
-
-    if char_count.values().any(|v| *v >= 5) {
+    if card_lut.iter().any(|v| *v >= 5) {
         return 6; // 5 of a kind
     }
-    if char_count.values().any(|v| *v >= 4) {
+    if card_lut.iter().any(|v| *v >= 4) {
         return 5; // 4 of a kind
     }
-    if char_count.values().filter(|v| **v >= 2).count() >= 2
-        && card_type_count_without_jokers.len() == 2
-    {
+    if card_lut.iter().filter(|v| **v >= 2).count() >= 2 && card_types_no_joker == 2 {
         return 4; // full house
     }
-    if char_count.values().any(|v| *v >= 3) {
+    if card_lut.iter().any(|v| *v >= 3) {
         return 3; // 3 of a kind
     }
     if joker_count >= 2
-        || (joker_count == 1 && card_type_count_without_jokers.len() < 4)
-        || (joker_count == 0 && char_count.values().filter(|v| **v >= 2).count() >= 2)
+        || (joker_count == 1 && card_types_no_joker < 4)
+        || (joker_count == 0 && card_lut.iter().filter(|v| **v >= 2).count() >= 2)
     {
         return 2; // 2 pair
     }
-    if char_count.values().any(|v| *v >= 2) {
+    if card_lut.iter().any(|v| *v >= 2) {
         return 1; // pair
     }
 
@@ -209,18 +163,29 @@ fn get_hand_rank_2(hand: &str) -> usize {
 
 #[test]
 fn test_get_rank_hand_2() {
-    assert_eq!(6, get_hand_rank_2("AAAAA"));
-    assert_eq!(5, get_hand_rank_2("AAAA1"));
-    assert_eq!(4, get_hand_rank_2("22333"));
-    assert_eq!(3, get_hand_rank_2("11123"));
-    assert_eq!(2, get_hand_rank_2("11223"));
-    assert_eq!(1, get_hand_rank_2("11234"));
-    assert_eq!(0, get_hand_rank_2("12345"));
+    let map = |hand: [u8; 5]| {
+        hand.map(|b| match b {
+            b'A' => 13,
+            b'K' => 12,
+            b'Q' => 11,
+            b'T' => 10,
+            b'J' => 1,
+            b => b & 0x0F,
+        })
+    };
 
-    assert_eq!(5, get_hand_rank_2("223JJ")); // 4 of a kind
-    assert_eq!(4, get_hand_rank_2("2233J")); // full house
-    assert_eq!(3, get_hand_rank_2("234JJ")); // 3 of a kind
-    assert_eq!(1, get_hand_rank_2("2345J")); // pair
+    assert_eq!(6, get_hand_rank_2(map(*b"AAAAA")));
+    assert_eq!(5, get_hand_rank_2(map(*b"AAAA2")));
+    assert_eq!(4, get_hand_rank_2(map(*b"22333")));
+    assert_eq!(3, get_hand_rank_2(map(*b"22234")));
+    assert_eq!(2, get_hand_rank_2(map(*b"AA223")));
+    assert_eq!(1, get_hand_rank_2(map(*b"AA234")));
+    assert_eq!(0, get_hand_rank_2(map(*b"A2345")));
+
+    assert_eq!(5, get_hand_rank_2(map(*b"223JJ"))); // 4 of a kind
+    assert_eq!(4, get_hand_rank_2(map(*b"2233J"))); // full house
+    assert_eq!(3, get_hand_rank_2(map(*b"234JJ"))); // 3 of a kind
+    assert_eq!(1, get_hand_rank_2(map(*b"2345J"))); // pair
 }
 
 #[test]
