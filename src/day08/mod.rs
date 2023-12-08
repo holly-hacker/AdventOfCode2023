@@ -1,7 +1,5 @@
 #![allow(clippy::naive_bytecount)]
 
-use std::collections::HashMap;
-
 use super::*;
 
 pub struct Day;
@@ -16,7 +14,7 @@ impl SolutionSilver<usize> for Day {
         let instructions = lines.next().unwrap();
         _ = lines.next().unwrap();
 
-        let map = lines
+        let nodes = lines
             .map(|l| {
                 let node: [u8; 3] = (&l.as_bytes()[..3]).try_into().unwrap();
                 let left: [u8; 3] = (&l.as_bytes()[7..10]).try_into().unwrap();
@@ -24,23 +22,24 @@ impl SolutionSilver<usize> for Day {
 
                 (node, (left, right))
             })
-            .collect::<HashMap<_, _>>();
+            .collect::<ahash::AHashMap<_, _>>();
 
         let mut current = *b"AAA";
-        for repeat in 0.. {
-            for (i, b) in instructions.bytes().enumerate() {
-                if current[0] == b'Z' && current[1] == b'Z' && current[2] == b'Z' {
-                    return repeat * instructions.len() + i;
+        (0..)
+            .find(|_| {
+                if current == *b"ZZZ" {
+                    return true;
                 }
-                current = match b {
-                    b'L' => map[&current].0,
-                    b'R' => map[&current].1,
-                    _ => unreachable!(),
-                };
-            }
-        }
-
-        unreachable!()
+                for instruction in instructions.bytes() {
+                    current = match instruction {
+                        b'L' => nodes[&current].0,
+                        _ => nodes[&current].1,
+                    };
+                }
+                false
+            })
+            .unwrap()
+            * instructions.len()
     }
 }
 
@@ -60,30 +59,28 @@ impl SolutionGold<usize, usize> for Day {
 
                 (node, (left, right))
             })
-            .collect::<HashMap<_, _>>();
+            .collect::<ahash::AHashMap<_, _>>();
 
-        // figure out how long it takes to get to the end of each loop
         nodes
             .keys()
             .filter(|k| k[2] == b'A')
             .cloned()
             .map(|node| {
                 let mut current = node;
-                for count in 0.. {
-                    for instruction in instructions.bytes() {
-                        current = match instruction {
-                            b'L' => nodes[&current].0,
-                            b'R' => nodes[&current].1,
-                            _ => unreachable!(),
-                        };
-                    }
-
-                    if current[2] == b'Z' {
-                        return count + 1;
-                    }
-                }
-
-                unreachable!()
+                (0..)
+                    .find(|_| {
+                        if current[2] == b'Z' {
+                            return true;
+                        }
+                        for instruction in instructions.bytes() {
+                            current = match instruction {
+                                b'L' => nodes[&current].0,
+                                _ => nodes[&current].1,
+                            };
+                        }
+                        false
+                    })
+                    .unwrap()
             })
             .reduce(lcm)
             .unwrap()
