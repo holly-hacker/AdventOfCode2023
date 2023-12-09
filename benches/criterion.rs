@@ -49,5 +49,5 @@ macro_rules! gen_benchmarks {
 }
 
 gen_benchmarks! {
-    01, 02, 03, 04, 05, 06, 07, 08,
+    01, 02, 03, 04, 05, 06, 07, 08, 09,
 }

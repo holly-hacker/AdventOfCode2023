@@ -1,6 +1,4 @@
-#![allow(clippy::naive_bytecount)]
-
-use std::collections::VecDeque;
+use std::cell::Cell;
 
 use super::*;
 
@@ -12,30 +10,35 @@ impl SolutionSilver<usize> for Day {
     const INPUT_REAL: &'static str = include_str!("input_real.txt");
 
     fn calculate_silver(input: &str) -> usize {
+        let mut buffer = vec![];
         input
             .lines()
             .map(|l| {
-                let first_row = l
-                    .split(' ')
-                    .map(|n| n.parse::<isize>().unwrap())
-                    .collect::<Vec<_>>();
+                // re-usable buffer for cache efficiency and reducing heap allocs
+                buffer.clear();
+                buffer.extend(l.split(' ').map(|n| n.parse::<isize>().unwrap()));
 
-                let mut all_rows = vec![first_row.clone()];
-                while !all_rows.last().unwrap().windows(2).all(|w| w[0] == w[1]) {
-                    let mut new_row = Vec::new();
-                    for w in all_rows.last().unwrap().windows(2) {
-                        new_row.push(w[1] - w[0]);
+                // the amount of rows we currently have
+                let mut depth = 0;
+                let len = buffer.len();
+                loop {
+                    let subslice = &mut buffer[..(len - depth)];
+                    if subslice.iter().skip(1).all(|w| subslice[0] == *w) {
+                        // all good
+                        break;
                     }
-                    all_rows.push(new_row);
+
+                    // hack described by the `.windows(_)` docs, to emulate `.windows_mut(_)`
+                    let buffer_cells = Cell::from_mut(subslice).as_slice_of_cells();
+                    buffer_cells.windows(2).for_each(|w| {
+                        w[0].set(w[1].get() - w[0].get());
+                    });
+
+                    depth += 1;
                 }
 
-                for i in (1..all_rows.len()).rev() {
-                    let up = *all_rows[i - 1].last().unwrap();
-                    let cur = *all_rows[i].last().unwrap();
-                    all_rows[i - 1].push(up + cur);
-                }
-
-                *all_rows[0].last().unwrap()
+                let start_index = buffer.len() - 1 - depth;
+                buffer[start_index..].iter().sum::<isize>()
             })
             .sum::<isize>() as usize
     }
@@ -43,38 +46,34 @@ impl SolutionSilver<usize> for Day {
 
 impl SolutionGold<usize, usize> for Day {
     fn calculate_gold(input: &str) -> usize {
+        let mut buffer = vec![];
         input
             .lines()
             .map(|l| {
-                let first_row = l
-                    .split(' ')
-                    .map(|n| n.parse::<isize>().unwrap())
-                    .collect::<VecDeque<_>>();
+                buffer.clear();
+                buffer.extend(l.split(' ').map(|n| n.parse::<isize>().unwrap()));
 
-                let mut all_rows = vec![first_row.clone()];
-                while !all_rows.last().unwrap().iter().all(|b| *b == 0) {
-                    let mut new_row = VecDeque::new();
-                    // TODO: pretty hacky, improve this
-                    for w in all_rows
-                        .last()
-                        .unwrap()
-                        .iter()
-                        .collect::<Vec<_>>()
-                        .windows(2)
-                        .rev()
-                    {
-                        new_row.push_front(w[1] - w[0]);
+                let mut depth = 0;
+                loop {
+                    let subslice = &mut buffer[depth..];
+                    if subslice.iter().skip(1).all(|w| subslice[0] == *w) {
+                        break;
                     }
-                    all_rows.push(new_row);
+
+                    let buffer_cells = Cell::from_mut(subslice).as_slice_of_cells();
+                    buffer_cells.windows(2).rev().for_each(|w| {
+                        w[1].set(w[1].get() - w[0].get());
+                    });
+
+                    depth += 1;
                 }
 
-                for i in (1..all_rows.len()).rev() {
-                    let up = all_rows[i - 1][0];
-                    let cur = all_rows[i][0];
-                    all_rows[i - 1].push_front(up - cur);
-                }
-
-                all_rows[0][0]
+                let start_index = depth + 1;
+                buffer[..start_index]
+                    .iter()
+                    .enumerate()
+                    .map(|(i, v)| if i % 2 == 0 { *v } else { -*v })
+                    .sum::<isize>()
             })
             .sum::<isize>() as usize
     }
