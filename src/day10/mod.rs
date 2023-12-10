@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 
 use super::*;
 
@@ -162,7 +162,7 @@ impl SolutionGold<usize, usize> for Day {
         }
 
         // flood-fill the grid to find which tiles are within the loop
-        let mut is_area_outside_loop = vec![false; width * height];
+        let mut area_outside_loop = vec![false; width * height];
         let mut queue = VecDeque::new();
 
         // find any position outside the loop by walking the edges
@@ -177,11 +177,11 @@ impl SolutionGold<usize, usize> for Day {
             }
         }
 
-        // flood-fill the grid
+        // flood-fill the outside of the grid
         while let Some(pos) = queue.pop_front() {
             debug_assert!(!the_loop[pos]);
 
-            if is_area_outside_loop[pos] {
+            if area_outside_loop[pos] {
                 continue;
             }
 
@@ -221,17 +221,19 @@ impl SolutionGold<usize, usize> for Day {
                 }
             }
 
-            is_area_outside_loop[pos] = true;
+            area_outside_loop[pos] = true;
         }
 
         let mut loop_count = 0;
+        let mut grid_positions_within_loop = HashSet::<usize>::new();
+        let mut grid_positions_outside_loop = HashSet::<usize>::new();
         for position in 0..grid.len() {
             let grid_width = width + 1;
             let grid_height = height + 1;
             let start_x = position % width;
             let start_y = position / width;
 
-            if the_loop[position] || is_area_outside_loop[position] {
+            if the_loop[position] || area_outside_loop[position] {
                 continue;
             }
 
@@ -244,10 +246,22 @@ impl SolutionGold<usize, usize> for Day {
 
             let mut visited = vec![false; grid_width * grid_height];
 
+            let mut escaped = false;
             while let Some(grid_pos) = queue.pop_front() {
                 if visited[grid_pos] {
                     // already visited!
                     continue;
+                }
+
+                if grid_positions_within_loop.contains(&grid_pos) {
+                    // we found a loop
+                    escaped = false;
+                    break;
+                }
+                if grid_positions_outside_loop.contains(&grid_pos) {
+                    // we didn't find a loop
+                    escaped = true;
+                    break;
                 }
 
                 let grid_pos_x = grid_pos % grid_width;
@@ -255,9 +269,7 @@ impl SolutionGold<usize, usize> for Day {
 
                 if grid_pos_x == 0 || grid_pos_x == width || grid_pos_y == 0 || grid_pos_y == height
                 {
-                    // we're at the edge of the grid, this tile is not in a loop
-                    // hack, so we can detect that the queue isn't empty
-                    queue.push_back(grid_pos);
+                    escaped = true;
                     break;
                 }
 
@@ -266,14 +278,12 @@ impl SolutionGold<usize, usize> for Day {
                 let top_right_pos = grid_pos_x + (grid_pos_y - 1) * width;
                 let bottom_right_pos = grid_pos_x + grid_pos_y * width;
 
-                if is_area_outside_loop[top_left_pos]
-                    || is_area_outside_loop[bottom_left_pos]
-                    || is_area_outside_loop[top_right_pos]
-                    || is_area_outside_loop[bottom_right_pos]
+                if area_outside_loop[top_left_pos]
+                    || area_outside_loop[bottom_left_pos]
+                    || area_outside_loop[top_right_pos]
+                    || area_outside_loop[bottom_right_pos]
                 {
-                    // we're outside the loop, this tile is not in a loop
-                    // hack, so we can detect that the queue isn't empty
-                    queue.push_back(grid_pos);
+                    escaped = true;
                     break;
                 }
 
@@ -314,9 +324,22 @@ impl SolutionGold<usize, usize> for Day {
                 visited[grid_pos] = true;
             }
 
-            if queue.is_empty() {
+            if !escaped {
                 // we found a loop
                 loop_count += 1;
+                for grid_pos in visited
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, &v)| v)
+                    .map(|(i, _)| i)
+                {
+                    grid_positions_within_loop.insert(grid_pos);
+                }
+            } else {
+                // we didn't find a loop
+                for grid_pos in queue {
+                    grid_positions_outside_loop.insert(grid_pos);
+                }
             }
         }
 
