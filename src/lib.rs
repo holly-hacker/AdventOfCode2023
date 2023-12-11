@@ -61,11 +61,11 @@ pub trait SolutionSilver<TSilver: Display> {
 
     fn execute_silver() {
         let (output, time) = run_timed(|| Self::calculate_silver(Self::INPUT_SAMPLE));
-        println!("Day {}, silver (sample): {output} ({time:?})", Self::DAY,);
+        println!("Day {:02}, silver (s) | {time:>10?} | {output}", Self::DAY);
         let (output, time) = run_timed(|| Self::calculate_silver(Self::INPUT_REAL));
-        println!("Day {}, silver: {output} ({time:?})", Self::DAY);
+        println!("Day {:02}, silver     | {time:>10?} | {output}", Self::DAY);
 
-        println!("Day {} has no gold implementation", Self::DAY);
+        // println!("Day {:02} has no gold implementation", Self::DAY);
     }
 
     fn calculate_silver(input: &str) -> TSilver;
@@ -76,14 +76,14 @@ pub trait SolutionGold<TSilver: Display, TGold: Display>: SolutionSilver<TSilver
 
     fn execute() {
         let (output, time) = run_timed(|| Self::calculate_silver(Self::INPUT_SAMPLE));
-        println!("Day {}, silver (sample): {output} ({time:?})", Self::DAY);
+        println!("Day {:02}, silver (s) | {time:>10?} | {output}", Self::DAY);
         let (output, time) = run_timed(|| Self::calculate_silver(Self::INPUT_REAL));
-        println!("Day {}, silver: {output} ({time:?})", Self::DAY);
+        println!("Day {:02}, silver     | {time:>10?} | {output}", Self::DAY);
 
         let (output, time) = run_timed(|| Self::calculate_gold(Self::INPUT_SAMPLE_GOLD));
-        println!("Day {}, gold (sample): {output} ({time:?})", Self::DAY);
+        println!("Day {:02}, gold (s)   | {time:>10?} | {output}", Self::DAY);
         let (output, time) = run_timed(|| Self::calculate_gold(Self::INPUT_REAL));
-        println!("Day {}, gold: {output} ({time:?})", Self::DAY);
+        println!("Day {:02}, gold       | {time:>10?} | {output}", Self::DAY);
 
         #[cfg(feature = "profile")]
         for _ in 0..100 {
