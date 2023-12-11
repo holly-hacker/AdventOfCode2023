@@ -6,7 +6,7 @@ pub struct Day;
 
 impl SolutionSilver<usize> for Day {
     const DAY: u32 = 10;
-    const INPUT_SAMPLE: &'static str = include_str!("input_sample.txt");
+    const INPUT_SAMPLE: &'static str = include_str!("input_sample_silver.txt");
     const INPUT_REAL: &'static str = include_str!("input_real.txt");
 
     fn calculate_silver(input: &str) -> usize {
@@ -89,7 +89,7 @@ impl SolutionSilver<usize> for Day {
 }
 
 impl SolutionGold<usize, usize> for Day {
-    const INPUT_SAMPLE_GOLD: &'static str = include_str!("input_sample_gold.txt");
+    const INPUT_SAMPLE_GOLD: &'static str = include_str!("input_sample_gold3.txt");
 
     fn calculate_gold(input: &str) -> usize {
         let width = input.lines().next().unwrap().len();
@@ -360,8 +360,26 @@ fn test_silver_real() {
 }
 
 #[test]
-fn test_gold_sample() {
-    let output = Day::calculate_gold(Day::INPUT_SAMPLE_GOLD);
+fn test_gold_sample_1() {
+    let output = Day::calculate_gold(include_str!("input_sample_gold1.txt"));
+    assert_eq!(4, output);
+}
+
+#[test]
+fn test_gold_sample_1_alt() {
+    let output = Day::calculate_gold(include_str!("input_sample_gold1_alt.txt"));
+    assert_eq!(4, output);
+}
+
+#[test]
+fn test_gold_sample_2() {
+    let output = Day::calculate_gold(include_str!("input_sample_gold2.txt"));
+    assert_eq!(8, output);
+}
+
+#[test]
+fn test_gold_sample_3() {
+    let output = Day::calculate_gold(include_str!("input_sample_gold3.txt"));
     assert_eq!(10, output);
 }
 
