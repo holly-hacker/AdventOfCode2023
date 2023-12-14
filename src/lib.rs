@@ -6,7 +6,8 @@
     clippy::unreadable_literal,
     clippy::identity_op,
     clippy::type_complexity,
-    clippy::option_if_let_else
+    clippy::option_if_let_else,
+    clippy::needless_range_loop
 )]
 
 use std::fmt::Display;
