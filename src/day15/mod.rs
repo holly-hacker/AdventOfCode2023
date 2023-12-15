@@ -13,10 +13,11 @@ impl SolutionSilver<usize> for Day {
 
     fn calculate_silver(input: &str) -> usize {
         input
-            .split(',')
+            .as_bytes()
+            .split(|b| *b == b',')
             .map(|seq| {
-                let val = seq.bytes().fold(0, |mut acc, c| {
-                    acc += c as usize;
+                let val = seq.iter().fold(0, |mut acc, c| {
+                    acc += *c as usize;
                     acc *= 17;
                     acc %= 256;
                     acc
@@ -30,15 +31,18 @@ impl SolutionSilver<usize> for Day {
 
 impl SolutionGold<usize, usize> for Day {
     fn calculate_gold(input: &str) -> usize {
-        let mut map = HashMap::<usize, Vec<(Vec<u8>, usize)>>::new();
+        let mut map = HashMap::<usize, Vec<(u32, usize)>>::new();
+        input.as_bytes().split(|b| *b == b',').for_each(|bytes| {
+            let label = &bytes[..bytes.iter().position(|b| *b == b'-' || *b == b'=').unwrap()];
 
-        input.split(',').for_each(|seq| {
-            let bytes = seq.as_bytes();
-            let label = &bytes[..bytes
-                .iter()
-                .position(|b| !b.is_ascii_alphanumeric())
-                .unwrap()];
             let op = &bytes[label.len()..];
+
+            // labels are ascii 'a'-'z', which we can mask to 5 bits
+            // the longest label in the input is 6 chars, so that fits in 32 bits
+            let label_bits = label
+                .iter()
+                .enumerate()
+                .fold(0u32, |acc, (i, b)| acc + ((*b as u32 & 0b11111) << (i * 5)));
 
             let label_hash = label.iter().fold(0, |mut acc, c| {
                 acc += *c as usize;
@@ -50,14 +54,14 @@ impl SolutionGold<usize, usize> for Day {
             if op[0] == b'=' {
                 let last = fast_parse_int_from_bytes(&op[1..]);
                 let vec = map.entry(label_hash).or_default();
-                if let Some(v) = vec.iter_mut().find(|i| i.0 == label) {
+                if let Some(v) = vec.iter_mut().find(|i| i.0 == label_bits) {
                     v.1 = last;
                 } else {
-                    vec.push((label.to_vec(), last));
+                    vec.push((label_bits, last));
                 }
             } else if op[0] == b'-' {
                 let vec = map.entry(label_hash).or_default();
-                if let Some(v) = vec.iter_mut().position(|i| i.0 == label) {
+                if let Some(v) = vec.iter_mut().position(|i| i.0 == label_bits) {
                     vec.remove(v);
                 }
             } else {
@@ -66,10 +70,10 @@ impl SolutionGold<usize, usize> for Day {
         });
 
         map.into_iter()
-            .map(|(_box, v)| {
+            .map(|(box_idx, v)| {
                 v.iter()
                     .enumerate()
-                    .map(|(pos, focal_len)| (_box + 1) * (pos + 1) * (focal_len.1))
+                    .map(|(pos, focal_len)| (box_idx + 1) * (pos + 1) * (focal_len.1))
                     .sum::<usize>()
             })
             .sum()
