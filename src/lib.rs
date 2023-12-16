@@ -47,6 +47,7 @@ register_days! {
     13 gold,
     14 gold,
     15 gold,
+    16 gold,
 }
 
 fn run_timed<T, F>(fun: F) -> (T, std::time::Duration)
