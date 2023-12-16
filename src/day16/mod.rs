@@ -1,4 +1,6 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::VecDeque;
+
+use ahash::AHashMap;
 
 use super::*;
 
@@ -10,12 +12,14 @@ impl SolutionSilver<usize> for Day {
     const INPUT_REAL: &'static str = include_str!("input_real.txt");
 
     fn calculate_silver(input: &str) -> usize {
-        let grid = input.lines().map(|l| l.as_bytes()).collect::<Vec<_>>();
+        let grid = input.as_bytes().split(|b| *b == b'\n').collect::<Vec<_>>();
 
         let mut queue = VecDeque::<((isize, isize), (isize, isize))>::new();
         queue.push_back(((0, 0), (1, 0)));
 
-        let mut visited = HashSet::new();
+        // visited is a hasmap instead of a hashset so we can more easily track visited
+        // positions later
+        let mut visited = AHashMap::<(isize, isize), usize>::new();
 
         while let Some((pos, dir)) = queue.pop_front() {
             if pos.0 < 0
@@ -26,10 +30,19 @@ impl SolutionSilver<usize> for Day {
                 continue;
             }
 
-            let newly_inserted = visited.insert((pos, dir));
-            if !newly_inserted {
+            let dir_bitmap = match dir {
+                (0, 1) => 1 << 0,
+                (0, -1) => 1 << 1,
+                (-1, 0) => 1 << 2,
+                (1, 0) => 1 << 3,
+                _ => unreachable!("unknown dir: {:?}", dir),
+            };
+            let entry = visited.entry(pos).or_default();
+            if *entry & dir_bitmap != 0 {
+                // already visited
                 continue;
             }
+            *entry |= dir_bitmap;
 
             match (grid[pos.1 as usize][pos.0 as usize], dir) {
                 (b'.', _) | (b'-', (_, 0)) | (b'|', (0, _)) => {
@@ -56,22 +69,18 @@ impl SolutionSilver<usize> for Day {
                     queue.push_back(((pos.0, pos.1 - 1), (0, -1)));
                 }
                 (c, _) => {
-                    panic!("unknown char: {c}");
+                    unreachable!("unknown char: {c}");
                 }
             }
         }
 
-        visited
-            .into_iter()
-            .map(|(p, _)| p)
-            .collect::<HashSet<_>>()
-            .len()
+        visited.len()
     }
 }
 
 impl SolutionGold<usize, usize> for Day {
     fn calculate_gold(input: &str) -> usize {
-        let grid = input.lines().map(|l| l.as_bytes()).collect::<Vec<_>>();
+        let grid = input.as_bytes().split(|b| *b == b'\n').collect::<Vec<_>>();
 
         (0..grid.len())
             .map(|y| ((0, y), (1, 0)))
@@ -82,7 +91,9 @@ impl SolutionGold<usize, usize> for Day {
                 let mut queue = VecDeque::<((isize, isize), (isize, isize))>::new();
                 queue.push_back(((pos.0 as isize, pos.1 as isize), dir));
 
-                let mut visited = HashSet::new();
+                // visited is a hasmap instead of a hashset so we can more easily track visited
+                // positions later
+                let mut visited = AHashMap::<(isize, isize), usize>::new();
 
                 while let Some((pos, dir)) = queue.pop_front() {
                     if pos.0 < 0
@@ -93,10 +104,19 @@ impl SolutionGold<usize, usize> for Day {
                         continue;
                     }
 
-                    let newly_inserted = visited.insert((pos, dir));
-                    if !newly_inserted {
+                    let dir_bitmap = match dir {
+                        (0, 1) => 1 << 0,
+                        (0, -1) => 1 << 1,
+                        (-1, 0) => 1 << 2,
+                        (1, 0) => 1 << 3,
+                        _ => unreachable!("unknown dir: {:?}", dir),
+                    };
+                    let entry = visited.entry(pos).or_default();
+                    if *entry & dir_bitmap != 0 {
+                        // already visited
                         continue;
                     }
+                    *entry |= dir_bitmap;
 
                     match (grid[pos.1 as usize][pos.0 as usize], dir) {
                         (b'.', _) | (b'-', (_, 0)) | (b'|', (0, _)) => {
@@ -123,16 +143,12 @@ impl SolutionGold<usize, usize> for Day {
                             queue.push_back(((pos.0, pos.1 - 1), (0, -1)));
                         }
                         (c, _) => {
-                            panic!("unknown char: {c}");
+                            unreachable!("unknown char: {c}");
                         }
                     }
                 }
 
-                visited
-                    .into_iter()
-                    .map(|(p, _)| p)
-                    .collect::<HashSet<_>>()
-                    .len()
+                visited.len()
             })
             .max()
             .unwrap()
