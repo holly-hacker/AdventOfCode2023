@@ -1,4 +1,4 @@
-use std::collections::{BinaryHeap, VecDeque};
+use std::collections::BinaryHeap;
 
 use ahash::AHashMap;
 
@@ -15,6 +15,8 @@ impl SolutionSilver<usize> for Day {
         const MAX_FLOW: usize = 3;
 
         let grid = input.as_bytes().split(|b| *b == b'\n').collect::<Vec<_>>();
+        let width = grid[0].len();
+        let height = grid.len();
 
         let mut heap = BinaryHeap::new();
         heap.push(PositionWithDirection {
@@ -48,10 +50,10 @@ impl SolutionSilver<usize> for Day {
 
             visited.insert((pos.position, pos.direction, pos.flow_count), pos.heat_loss);
 
-            // dbg!(pos.heat_loss);
-            if pos.position.0 == grid[0].len() - 1 && pos.position.1 == grid.len() - 1 {
+            if pos.position.0 == width - 1 && pos.position.1 == height - 1 {
                 // found the end!
                 best_result = std::cmp::min(best_result, pos.heat_loss);
+                continue;
             }
 
             if pos.flow_count < MAX_FLOW {
@@ -59,8 +61,8 @@ impl SolutionSilver<usize> for Day {
                 let next_y = pos.position.1 as isize + pos.direction.1;
                 if next_x >= 0
                     && next_y >= 0
-                    && (next_x as usize) < grid[0].len()
-                    && (next_y as usize) < grid.len()
+                    && (next_x as usize) < width
+                    && (next_y as usize) < height
                 {
                     let next_x = next_x as usize;
                     let next_y = next_y as usize;
@@ -86,8 +88,8 @@ impl SolutionSilver<usize> for Day {
                 let next_y = pos.position.1 as isize + left.1;
                 if next_x >= 0
                     && next_y >= 0
-                    && (next_x as usize) < grid[0].len()
-                    && (next_y as usize) < grid.len()
+                    && (next_x as usize) < width
+                    && (next_y as usize) < height
                 {
                     let next_x = next_x as usize;
                     let next_y = next_y as usize;
@@ -107,8 +109,8 @@ impl SolutionSilver<usize> for Day {
                 let next_y = pos.position.1 as isize + right.1;
                 if next_x >= 0
                     && next_y >= 0
-                    && (next_x as usize) < grid[0].len()
-                    && (next_y as usize) < grid.len()
+                    && (next_x as usize) < width
+                    && (next_y as usize) < height
                 {
                     let next_x = next_x as usize;
                     let next_y = next_y as usize;
@@ -133,6 +135,8 @@ impl SolutionGold<usize, usize> for Day {
         const MAX_FLOW: usize = 10;
 
         let grid = input.as_bytes().split(|b| *b == b'\n').collect::<Vec<_>>();
+        let width = grid[0].len();
+        let height = grid.len();
 
         let mut heap = BinaryHeap::new();
         heap.push(PositionWithDirection {
@@ -166,10 +170,10 @@ impl SolutionGold<usize, usize> for Day {
 
             visited.insert((pos.position, pos.direction, pos.flow_count), pos.heat_loss);
 
-            // dbg!(pos.heat_loss);
-            if pos.position.0 == grid[0].len() - 1 && pos.position.1 == grid.len() - 1 {
+            if pos.position.0 == width - 1 && pos.position.1 == height - 1 {
                 // found the end!
                 best_result = std::cmp::min(best_result, pos.heat_loss);
+                continue;
             }
 
             // go straight
@@ -178,8 +182,8 @@ impl SolutionGold<usize, usize> for Day {
                 let next_y = pos.position.1 as isize + pos.direction.1;
                 if next_x >= 0
                     && next_y >= 0
-                    && (next_x as usize) < grid[0].len()
-                    && (next_y as usize) < grid.len()
+                    && (next_x as usize) < width
+                    && (next_y as usize) < height
                 {
                     let next_x = next_x as usize;
                     let next_y = next_y as usize;
@@ -205,8 +209,8 @@ impl SolutionGold<usize, usize> for Day {
                 let next_y = pos.position.1 as isize + left.1;
                 if next_x >= 0
                     && next_y >= 0
-                    && (next_x as usize) < grid[0].len()
-                    && (next_y as usize) < grid.len()
+                    && (next_x as usize) < width
+                    && (next_y as usize) < height
                 {
                     let next_x = next_x as usize;
                     let next_y = next_y as usize;
@@ -226,8 +230,8 @@ impl SolutionGold<usize, usize> for Day {
                 let next_y = pos.position.1 as isize + right.1;
                 if next_x >= 0
                     && next_y >= 0
-                    && (next_x as usize) < grid[0].len()
-                    && (next_y as usize) < grid.len()
+                    && (next_x as usize) < width
+                    && (next_y as usize) < height
                 {
                     let next_x = next_x as usize;
                     let next_y = next_y as usize;
@@ -262,13 +266,7 @@ impl PartialOrd for PositionWithDirection {
 
 impl Ord for PositionWithDirection {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        match self.heat_loss.cmp(&other.heat_loss) {
-            std::cmp::Ordering::Equal => {
-                (self.position.0 + self.position.1).cmp(&(other.position.0 + other.position.1))
-            }
-            other => other,
-        }
-        .reverse()
+        self.heat_loss.cmp(&other.heat_loss).reverse()
     }
 }
 
