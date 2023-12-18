@@ -1,9 +1,7 @@
 use std::{
-    collections::{BinaryHeap, HashMap, HashSet, VecDeque},
+    collections::{HashSet, VecDeque},
     ops::RangeInclusive,
 };
-
-use ahash::AHashMap;
 
 use super::*;
 
@@ -181,31 +179,19 @@ impl SolutionGold<usize, usize> for Day {
             let y_start = y_positions[y_pos_idx] + 1;
             let y_end = y_positions[y_pos_idx + 1] - 1;
             let y_range = y_start..=y_end;
-            debug_assert!(y_start <= y_end);
-
-            if y_start >= y_end {
-                todo!();
-                // continue;
-            }
+            debug_assert!(y_start < y_end);
 
             for x_pos_idx in 0..(x_positions.len() - 1) {
                 let x_start = x_positions[x_pos_idx] + 1;
                 let x_end = x_positions[x_pos_idx + 1] - 1;
                 let x_range = x_start..=x_end;
-                debug_assert!(x_start <= x_end);
-
-                if x_start >= x_end {
-                    todo!();
-                    // continue;
-                }
+                debug_assert!(x_start < x_end);
 
                 // ignore items already visited
                 if visited_inside_edges.contains(&(x_range.clone(), y_range.clone())) {
-                    // println!("already visited inside {x_range:?}, {y_range:?}");
                     continue;
                 }
                 if visited_outside.contains(&(x_range.clone(), y_range.clone())) {
-                    // println!("already visited outside {x_range:?}, {y_range:?}");
                     continue;
                 }
 
@@ -244,7 +230,7 @@ impl SolutionGold<usize, usize> for Day {
                     debug_assert!(x_start <= x_end);
 
                     // ignore items already visited
-                    if visited_inside_edges.contains(&(x_range.clone(), y_range.clone())) {
+                    if visited_inside.contains(&(x_range.clone(), y_range.clone())) {
                         continue;
                     }
                     if visited_now.contains(&(x_range.clone(), y_range.clone())) {
@@ -305,12 +291,9 @@ impl SolutionGold<usize, usize> for Day {
                 }
 
                 if escaped {
-                    // println!("escaped {x_range:?}, {y_range:?}");
                     visited_outside.extend(visited_now);
                 } else {
-                    // println!("not escaped {x_range:?}, {y_range:?}");
                     visited_inside.extend(visited_now);
-                    visited_inside_edges.extend(visited_edges);
                 }
             }
         }
@@ -337,16 +320,10 @@ impl SolutionGold<usize, usize> for Day {
             })
             .collect::<HashSet<_>>();
 
-        let ret = new_total
+        new_total
             .into_iter()
             .map(|(range_x, range_y)| range_x.count() * range_y.count())
-            .sum::<usize>();
-
-        // dbg!(ret);
-
-        // std::thread::sleep(std::time::Duration::from_secs(1));
-
-        ret
+            .sum::<usize>()
     }
 }
 
