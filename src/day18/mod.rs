@@ -1,7 +1,8 @@
-use std::{
-    collections::{HashSet, VecDeque},
-    ops::RangeInclusive,
-};
+#![allow(clippy::range_minus_one, clippy::redundant_clone)]
+
+use std::{collections::VecDeque, ops::RangeInclusive};
+
+use ahash::AHashSet;
 
 use super::*;
 
@@ -13,7 +14,7 @@ impl SolutionSilver<usize> for Day {
     const INPUT_REAL: &'static str = include_str!("input_real.txt");
 
     fn calculate_silver(input: &str) -> usize {
-        let mut map = HashSet::new();
+        let mut map = AHashSet::new();
         let mut pos = (0, 0);
         map.insert(pos);
 
@@ -44,7 +45,7 @@ impl SolutionSilver<usize> for Day {
         let max_x = *map.iter().map(|(x, _)| x).max().unwrap();
         let max_y = *map.iter().map(|(_, y)| y).max().unwrap();
 
-        let mut visited_outside = HashSet::<(i32, i32)>::new();
+        let mut visited_outside = AHashSet::<(i32, i32)>::new();
 
         for start_y in min_y..=max_y {
             for start_x in min_x..=max_x {
@@ -57,7 +58,7 @@ impl SolutionSilver<usize> for Day {
                 }
 
                 // flood-fill until escaped area or exhausted all possibilities
-                let mut visited_now = HashSet::new();
+                let mut visited_now = AHashSet::new();
                 let mut queue = VecDeque::new();
                 queue.push_back((start_x, start_y));
 
@@ -106,12 +107,11 @@ impl SolutionSilver<usize> for Day {
 
 impl SolutionGold<usize, usize> for Day {
     fn calculate_gold(input: &str) -> usize {
-        let mut coordinates = vec![];
         let mut x_positions = vec![];
         let mut y_positions = vec![];
-        let mut pos = (0, 0);
+        let mut lines = AHashSet::new();
 
-        coordinates.push(pos);
+        let mut pos = (0, 0);
         x_positions.push(pos.0);
         y_positions.push(pos.1);
 
@@ -136,9 +136,28 @@ impl SolutionGold<usize, usize> for Day {
             };
 
             let next_pos = (pos.0 + direction.0 * len, pos.1 + direction.1 * len);
-            coordinates.push(next_pos);
             x_positions.push(next_pos.0);
             y_positions.push(next_pos.1);
+
+            // create list of lines
+            let min_x = pos.0.min(next_pos.0);
+            let max_x = pos.0.max(next_pos.0);
+            let min_y = pos.1.min(next_pos.1);
+            let max_y = pos.1.max(next_pos.1);
+
+            if min_x == max_x {
+                // vertical line
+                lines.insert(((min_x..=max_x), (min_y..=min_y)));
+                lines.insert(((min_x..=max_x), (min_y + 1..=max_y - 1)));
+                lines.insert(((min_x..=max_x), (max_y..=max_y)));
+            } else {
+                debug_assert_eq!(min_y, max_y);
+                // horizontal line
+                lines.insert(((min_x..=min_x), (min_y..=max_y)));
+                lines.insert(((min_x + 1..=max_x - 1), (min_y..=max_y)));
+                lines.insert(((max_x..=max_x), (min_y..=max_y)));
+            }
+
             pos = next_pos;
         });
         x_positions.sort_unstable();
@@ -146,35 +165,11 @@ impl SolutionGold<usize, usize> for Day {
         y_positions.sort_unstable();
         y_positions.dedup();
 
-        let mut visited_inside_edges = HashSet::new();
-
-        // add all lines to the new map
-        for pair in coordinates.windows(2) {
-            let (start, end) = (pair[0], pair[1]);
-
-            let min_x = start.0.min(end.0);
-            let max_x = start.0.max(end.0);
-            let min_y = start.1.min(end.1);
-            let max_y = start.1.max(end.1);
-
-            if min_x == max_x {
-                // vertical line
-                visited_inside_edges.insert(((min_x..=max_x), (min_y..=min_y)));
-                visited_inside_edges.insert(((min_x..=max_x), (min_y + 1..=max_y - 1)));
-                visited_inside_edges.insert(((min_x..=max_x), (max_y..=max_y)));
-            } else {
-                debug_assert_eq!(min_y, max_y);
-                // horizontal line
-                visited_inside_edges.insert(((min_x..=min_x), (min_y..=max_y)));
-                visited_inside_edges.insert(((min_x + 1..=max_x - 1), (min_y..=max_y)));
-                visited_inside_edges.insert(((max_x..=max_x), (min_y..=max_y)));
-            }
-        }
-
         // flood-fill all
-        let mut visited_inside = HashSet::new();
-        let mut visited_outside = HashSet::<(RangeInclusive<i32>, RangeInclusive<i32>)>::new();
-
+        let mut inside_shape = AHashSet::new();
+        let mut outside_shape = AHashSet::<(RangeInclusive<i32>, RangeInclusive<i32>)>::new();
+        let mut visited = AHashSet::new();
+        let mut queue = VecDeque::new();
         for y_pos_idx in 0..(y_positions.len() - 1) {
             let y_start = y_positions[y_pos_idx] + 1;
             let y_end = y_positions[y_pos_idx + 1] - 1;
@@ -188,17 +183,16 @@ impl SolutionGold<usize, usize> for Day {
                 debug_assert!(x_start < x_end);
 
                 // ignore items already visited
-                if visited_inside_edges.contains(&(x_range.clone(), y_range.clone())) {
+                if inside_shape.contains(&(x_range.clone(), y_range.clone())) {
                     continue;
                 }
-                if visited_outside.contains(&(x_range.clone(), y_range.clone())) {
+                if outside_shape.contains(&(x_range.clone(), y_range.clone())) {
                     continue;
                 }
 
                 // flood-fill until escaped area or exhausted all possibilities
-                let mut visited_now = HashSet::new();
-                let mut visited_edges = HashSet::new();
-                let mut queue = VecDeque::new();
+                visited.clear();
+                queue.clear();
                 queue.push_back((x_pos_idx as isize, y_pos_idx as isize));
 
                 let mut escaped = false;
@@ -226,101 +220,84 @@ impl SolutionGold<usize, usize> for Day {
                     if x_start >= x_end {
                         continue;
                     }
-                    debug_assert!(y_start <= y_end);
-                    debug_assert!(x_start <= x_end);
+                    debug_assert!(y_start < y_end);
+                    debug_assert!(x_start < x_end);
 
                     // ignore items already visited
-                    if visited_inside.contains(&(x_range.clone(), y_range.clone())) {
-                        continue;
+                    if inside_shape.contains(&(x_range.clone(), y_range.clone())) {
+                        escaped = false;
+                        break;
                     }
-                    if visited_now.contains(&(x_range.clone(), y_range.clone())) {
-                        continue;
-                    }
-                    if visited_outside.contains(&(x_range.clone(), y_range.clone())) {
+                    if outside_shape.contains(&(x_range.clone(), y_range.clone())) {
                         escaped = true;
                         break;
                     }
+                    if visited.contains(&(x_range.clone(), y_range.clone())) {
+                        continue;
+                    }
 
                     // mark as visited
-                    visited_now.insert((x_range.clone(), y_range.clone()));
+                    visited.insert((x_range.clone(), y_range.clone()));
 
-                    let can_go_left = !visited_inside_edges
+                    // add neighbors to queue, iff there is no wall blocking them
+                    let can_go_left = !lines
                         .iter()
                         .any(|r| r.0.contains(&(x_start - 1)) && r.1.contains(&y_start));
-                    let can_go_right = !visited_inside_edges
+                    let can_go_right = !lines
                         .iter()
                         .any(|r| r.0.contains(&(x_end + 1)) && r.1.contains(&y_start));
-                    let can_go_up = !visited_inside_edges
+                    let can_go_up = !lines
                         .iter()
                         .any(|r| r.1.contains(&(y_start - 1)) && r.0.contains(&x_start));
-                    let can_go_down = !visited_inside_edges
+                    let can_go_down = !lines
                         .iter()
                         .any(|r| r.1.contains(&(y_end + 1)) && r.0.contains(&x_start));
 
-                    // add neighbors to queue, iff there is no wall blocking them
                     if can_go_left {
-                        visited_edges.insert(((x_start - 1..=x_start - 1), y_range.clone()));
-                        visited_edges
-                            .insert(((x_start - 1..=x_start - 1), (y_start - 1..=y_start - 1)));
-                        visited_edges
-                            .insert(((x_start - 1..=x_start - 1), (y_end + 1..=y_end + 1)));
                         queue.push_back((x_pos_idx - 1, y_pos_idx));
                     }
                     if can_go_right {
-                        visited_edges.insert(((x_end + 1..=x_end + 1), y_range.clone()));
-                        visited_edges
-                            .insert(((x_end + 1..=x_end + 1), (y_start - 1..=y_start - 1)));
-                        visited_edges.insert(((x_end + 1..=x_end + 1), (y_end + 1..=y_end + 1)));
                         queue.push_back((x_pos_idx + 1, y_pos_idx));
                     }
                     if can_go_up {
-                        visited_edges.insert((x_range.clone(), y_start - 1..=y_start - 1));
-                        visited_edges
-                            .insert(((x_start - 1..=x_start - 1), (y_start - 1..=y_start - 1)));
-                        visited_edges
-                            .insert(((x_end + 1..=x_end + 1), (y_start - 1..=y_start - 1)));
                         queue.push_back((x_pos_idx, y_pos_idx - 1));
                     }
                     if can_go_down {
-                        visited_edges.insert((x_range.clone(), y_end + 1..=y_end + 1));
-                        visited_edges
-                            .insert(((x_start - 1..=x_start - 1), (y_end + 1..=y_end + 1)));
-                        visited_edges.insert(((x_end + 1..=x_end + 1), (y_end + 1..=y_end + 1)));
                         queue.push_back((x_pos_idx, y_pos_idx + 1));
                     }
                 }
 
                 if escaped {
-                    visited_outside.extend(visited_now);
+                    outside_shape.extend(visited.iter().cloned());
                 } else {
-                    visited_inside.extend(visited_now);
+                    inside_shape.extend(visited.iter().cloned());
                 }
             }
         }
 
-        let new_total = visited_inside
+        let all_ranges = inside_shape
             .iter()
             .flat_map(|region| {
-                let left = region.0.start() - 1..=region.0.start() - 1;
-                let right = region.0.end() + 1..=region.0.end() + 1;
-                let top = region.1.start() - 1..=region.1.start() - 1;
-                let bottom = region.1.end() + 1..=region.1.end() + 1;
+                let left_edge = region.0.start() - 1..=region.0.start() - 1;
+                let right_edge = region.0.end() + 1..=region.0.end() + 1;
+                let top_edge = region.1.start() - 1..=region.1.start() - 1;
+                let bottom_edge = region.1.end() + 1..=region.1.end() + 1;
 
                 [
-                    (region.0.clone(), region.1.clone()), // inner
-                    (left.clone(), region.1.clone()),     // left
-                    (right.clone(), region.1.clone()),    // right
-                    (region.0.clone(), top.clone()),      // top
-                    (region.0.clone(), bottom.clone()),   // bottom
-                    (left.clone(), top.clone()),          // top-left
-                    (right.clone(), top.clone()),         // top-right
-                    (left.clone(), bottom.clone()),       // bottom-left
-                    (right.clone(), bottom.clone()),      // bottom-right
+                    (region.0.clone(), region.1.clone()),      // inner
+                    (left_edge.clone(), region.1.clone()),     // left
+                    (right_edge.clone(), region.1.clone()),    // right
+                    (region.0.clone(), top_edge.clone()),      // top
+                    (region.0.clone(), bottom_edge.clone()),   // bottom
+                    (left_edge.clone(), top_edge.clone()),     // top-left
+                    (right_edge.clone(), top_edge.clone()),    // top-right
+                    (left_edge.clone(), bottom_edge.clone()),  // bottom-left
+                    (right_edge.clone(), bottom_edge.clone()), // bottom-right
                 ]
             })
-            .collect::<HashSet<_>>();
+            .collect::<AHashSet<_>>();
 
-        new_total
+        all_ranges
             .into_iter()
             .map(|(range_x, range_y)| range_x.count() * range_y.count())
             .sum::<usize>()
