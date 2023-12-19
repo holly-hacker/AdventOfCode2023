@@ -20,93 +20,83 @@ impl SolutionSilver<usize> for Day {
             .split('\n')
             .map(|l| {
                 let (name, rest) = l.split_once('{').unwrap();
-                let mut rules = rest.trim_end_matches('}').split(',').collect::<Vec<_>>();
-                let fallback_rule = match rules.pop() {
-                    None => panic!(),
-                    Some("A") => Output::Accepted,
-                    Some("R") => Output::Rejected,
-                    Some(r) => Output::Rule(r.to_string()),
-                };
+                let (rules, fallback_rule) = rest.rsplit_once(',').unwrap();
                 let rules = rules
-                    .iter()
+                    .split(',')
                     .map(|r| {
-                        let input = match &r[0..1] {
-                            "x" => Input::X,
-                            "m" => Input::M,
-                            "a" => Input::A,
-                            "s" => Input::S,
-                            _ => panic!(),
-                        };
-                        let is_less_than = r.contains('<');
-
                         let (operand, output) = r[2..].split_once(':').unwrap();
 
                         Rule {
-                            input,
-                            is_less_than,
-                            value: fast_parse_int(operand),
+                            input: match &r.as_bytes()[0] {
+                                b'x' => Input::X,
+                                b'm' => Input::M,
+                                b'a' => Input::A,
+                                b's' => Input::S,
+                                _ => panic!(),
+                            },
+                            is_less_than: r.as_bytes()[1] == b'<',
+                            operand: fast_parse_int(operand) as u16,
                             output: match output {
                                 "A" => Output::Accepted,
                                 "R" => Output::Rejected,
-                                r => Output::Rule(r.to_string()),
+                                r => Output::Rule(r),
                             },
                         }
                     })
                     .collect::<Vec<_>>();
 
-                (
-                    name.to_string(),
-                    Workflow {
-                        rules,
-                        fallback_rule,
-                    },
-                )
+                let fallback = match fallback_rule.trim_end_matches('}') {
+                    "A" => Output::Accepted,
+                    "R" => Output::Rejected,
+                    r => Output::Rule(r),
+                };
+
+                (name, Workflow { rules, fallback })
             })
             .collect::<AHashMap<_, _>>();
 
-        let inputs = ratings
+        ratings
             .split('\n')
             .map(|r| {
-                let mut inputs = r[1..][..r.len() - 2]
+                let mut inputs = r[1..r.len() - 1]
                     .split(',')
                     .map(|s| s.split_once('=').unwrap().1)
                     .map(fast_parse_int);
 
                 (
-                    inputs.next().unwrap(),
-                    inputs.next().unwrap(),
-                    inputs.next().unwrap(),
-                    inputs.next().unwrap(),
+                    inputs.next().unwrap() as u16,
+                    inputs.next().unwrap() as u16,
+                    inputs.next().unwrap() as u16,
+                    inputs.next().unwrap() as u16,
                 )
             })
-            .collect::<Vec<_>>();
-
-        inputs
-            .iter()
             .filter(|input| {
                 let mut workflow_name = "in";
                 loop {
                     let workflow = &workflows[workflow_name];
-                    let mut matching_rule = None;
-                    for r in &workflow.rules {
-                        let value = match r.input {
-                            Input::X => input.0,
-                            Input::M => input.1,
-                            Input::A => input.2,
-                            Input::S => input.3,
-                        };
-                        if (r.is_less_than && value < r.value)
-                            || (!r.is_less_than && value > r.value)
-                        {
-                            matching_rule = Some(&r.output);
-                            break;
-                        }
-                    }
-                    let matching_rule = match matching_rule {
-                        Some(x) => x,
-                        None => &workflow.fallback_rule,
-                    };
-                    match matching_rule {
+
+                    let next_rule = workflow
+                        .rules
+                        .iter()
+                        .find_map(|r| {
+                            let input = match r.input {
+                                Input::X => input.0,
+                                Input::M => input.1,
+                                Input::A => input.2,
+                                Input::S => input.3,
+                            };
+
+                            if (r.is_less_than && input < r.operand)
+                                || (!r.is_less_than && input > r.operand)
+                            {
+                                Some(&r.output)
+                            } else {
+                                None
+                            }
+                        })
+                        .unwrap_or(&workflow.fallback);
+
+                    match next_rule {
                         Output::Accepted => return true,
                         Output::Rejected => return false,
                         Output::Rule(r) => {
@@ -115,7 +105,7 @@ impl SolutionSilver<usize> for Day {
                     }
                 }
             })
-            .map(|i| i.0 + i.1 + i.2 + i.3)
+            .map(|i| (i.0 + i.1 + i.2 + i.3) as usize)
             .sum()
     }
 }
@@ -129,54 +119,41 @@ impl SolutionGold<usize, usize> for Day {
             .split('\n')
             .map(|l| {
                 let (name, rest) = l.split_once('{').unwrap();
-                let mut rules = rest.trim_end_matches('}').split(',').collect::<Vec<_>>();
-                let fallback_rule = match rules.pop() {
-                    None => panic!(),
-                    Some("A") => Output::Accepted,
-                    Some("R") => Output::Rejected,
-                    Some(r) => Output::Rule(r.to_string()),
-                };
+                let (rules, fallback_rule) = rest.rsplit_once(',').unwrap();
                 let rules = rules
-                    .iter()
+                    .split(',')
                     .map(|r| {
-                        let input = match &r[0..1] {
-                            "x" => Input::X,
-                            "m" => Input::M,
-                            "a" => Input::A,
-                            "s" => Input::S,
-                            _ => panic!(),
-                        };
-                        let is_less_than = r.contains('<');
-
                         let (operand, output) = r[2..].split_once(':').unwrap();
 
                         Rule {
-                            input,
-                            is_less_than,
-                            value: fast_parse_int(operand),
+                            input: match &r.as_bytes()[0] {
+                                b'x' => Input::X,
+                                b'm' => Input::M,
+                                b'a' => Input::A,
+                                b's' => Input::S,
+                                _ => panic!(),
+                            },
+                            is_less_than: r.as_bytes()[1] == b'<',
+                            operand: fast_parse_int(operand) as u16,
                             output: match output {
                                 "A" => Output::Accepted,
                                 "R" => Output::Rejected,
-                                r => Output::Rule(r.to_string()),
+                                r => Output::Rule(r),
                             },
                         }
                     })
                     .collect::<Vec<_>>();
 
-                (
-                    name.to_string(),
-                    Workflow {
-                        rules,
-                        fallback_rule,
-                    },
-                )
+                let fallback = match fallback_rule.trim_end_matches('}') {
+                    "A" => Output::Accepted,
+                    "R" => Output::Rejected,
+                    r => Output::Rule(r),
+                };
+
+                (name, Workflow { rules, fallback })
             })
             .collect::<AHashMap<_, _>>();
 
-        // recursively go down.
-        // pass ranges?
-        // within a workflow, you can still branch. need a function for a single step?
-        // may not need cache, tbd.
         let range = [1..=4000, 1..=4000, 1..=4000, 1..=4000];
 
         do_gold_math(&workflows, "in", range)
@@ -184,89 +161,69 @@ impl SolutionGold<usize, usize> for Day {
 }
 
 fn do_gold_math(
-    workflows: &AHashMap<String, Workflow>,
+    workflows: &AHashMap<&str, Workflow>,
     start: &str,
-    mut ranges: [RangeInclusive<usize>; 4],
+    ranges: [RangeInclusive<u16>; 4],
 ) -> usize {
     let workflow = &workflows[start];
 
-    let mut acc = 0;
+    let (acc, ranges) = workflow
+        .rules
+        .iter()
+        .fold((0usize, ranges), |(acc, mut ranges), rule| {
+            let index = match rule.input {
+                Input::X => 0,
+                Input::M => 1,
+                Input::A => 2,
+                Input::S => 3,
+            };
+            let (true_range, false_range) = if rule.is_less_than {
+                (
+                    *ranges[index].start()..=(rule.operand - 1),
+                    rule.operand..=*ranges[index].end(),
+                )
+            } else {
+                (
+                    (rule.operand + 1)..=*ranges[index].end(),
+                    *ranges[index].start()..=rule.operand,
+                )
+            };
 
-    for r in &workflow.rules {
-        let index = match r.input {
-            Input::X => 0,
-            Input::M => 1,
-            Input::A => 2,
-            Input::S => 3,
-        };
-        let (range_split, new_range) = if r.is_less_than {
-            (
-                *ranges[index].start()..=(r.value - 1),
-                r.value..=*ranges[index].end(),
-            )
-        } else {
-            (
-                (r.value + 1)..=*ranges[index].end(),
-                *ranges[index].start()..=r.value,
-            )
-        };
+            let mut r2 = ranges.clone();
+            r2[index] = true_range.clone();
 
-        let mut ranges_split = ranges.clone();
-        ranges_split[index] = range_split.clone();
+            let new_acc = match &rule.output {
+                Output::Accepted => r2[0].len() * r2[1].len() * r2[2].len() * r2[3].len(),
+                Output::Rejected => 0,
+                Output::Rule(r_output) => do_gold_math(workflows, r_output, r2),
+            };
 
-        ranges[index] = new_range;
+            ranges[index] = false_range;
+            (acc + new_acc, ranges)
+        });
 
-        match &r.output {
-            Output::Accepted => {
-                acc += (ranges_split[0].end() - ranges_split[0].start() + 1)
-                    * (ranges_split[1].end() - ranges_split[1].start() + 1)
-                    * (ranges_split[2].end() - ranges_split[2].start() + 1)
-                    * (ranges_split[3].end() - ranges_split[3].start() + 1);
-            }
-            Output::Rejected => {
-                acc += 0;
-            }
-            Output::Rule(r_output) => {
-                acc += do_gold_math(workflows, r_output, ranges_split);
-            }
-        }
+    acc + match &workflow.fallback {
+        Output::Accepted => ranges[0].len() * ranges[1].len() * ranges[2].len() * ranges[3].len(),
+        Output::Rejected => 0,
+        Output::Rule(r_output) => do_gold_math(workflows, r_output, ranges),
     }
-
-    // match final rule
-    let final_rule = &workflow.fallback_rule;
-    match final_rule {
-        Output::Accepted => {
-            acc += (ranges[0].end() - ranges[0].start() + 1)
-                * (ranges[1].end() - ranges[1].start() + 1)
-                * (ranges[2].end() - ranges[2].start() + 1)
-                * (ranges[3].end() - ranges[3].start() + 1);
-        }
-        Output::Rejected => {
-            acc += 0;
-        }
-        Output::Rule(r_output) => {
-            acc += do_gold_math(workflows, r_output, ranges);
-        }
-    }
-
-    acc
 }
 
 #[derive(Debug)]
-pub struct Workflow {
-    rules: Vec<Rule>,
-    fallback_rule: Output,
+pub struct Workflow<'a> {
+    rules: Vec<Rule<'a>>,
+    fallback: Output<'a>,
 }
 
 #[derive(Debug)]
-pub struct Rule {
+pub struct Rule<'a> {
     input: Input,
     is_less_than: bool,
-    value: usize,
-    output: Output,
+    operand: u16,
+    output: Output<'a>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Input {
     X,
     M,
@@ -275,10 +232,10 @@ pub enum Input {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Output {
+pub enum Output<'a> {
     Accepted,
     Rejected,
-    Rule(String),
+    Rule(&'a str),
 }
 
 #[test]
