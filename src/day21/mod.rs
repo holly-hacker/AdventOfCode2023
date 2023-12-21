@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 
 use ahash::{AHashMap, AHashSet};
+use memchr::memchr;
 
 use super::*;
 
@@ -12,62 +13,45 @@ impl SolutionSilver<usize> for Day {
     const INPUT_REAL: &'static str = include_str!("input_real.txt");
 
     fn calculate_silver(input: &str) -> usize {
-        let grid = input
-            .lines()
-            .map(|line| line.chars().collect::<Vec<_>>())
-            .collect::<Vec<_>>();
+        let input = input.as_bytes();
+        let width = memchr(b'\n', input).unwrap();
+        let stride = width + 1;
 
-        let start_position = grid
-            .iter()
-            .enumerate()
-            .find_map(|(y, line)| {
-                line.iter().enumerate().find_map(
-                    |(x, &c)| {
-                        if c == 'S' {
-                            Some((x, y))
-                        } else {
-                            None
-                        }
-                    },
-                )
-            })
-            .unwrap();
-
-        let mut targets = AHashSet::new();
+        let start_position = memchr(b'S', input).unwrap();
 
         let mut queue = VecDeque::new();
         let mut visited = AHashMap::new();
         queue.push_back((0, start_position));
 
-        while let Some((steps, (x, y))) = queue.pop_front() {
-            if visited.contains_key(&(x, y)) {
+        while let Some((steps, pos)) = queue.pop_front() {
+            let entry = visited.entry(pos).or_insert(usize::MAX);
+            if *entry != usize::MAX {
                 continue;
             }
-            visited.insert((x, y), steps);
-
-            if steps % 2 == 0 {
-                targets.insert((x, y));
-            }
+            *entry = steps;
 
             if steps == 64 {
                 continue;
             }
 
-            if x > 0 && grid[y][x - 1] != '#' {
-                queue.push_back((steps + 1, (x - 1, y)));
+            let x = pos % stride;
+            let y = pos / stride;
+
+            if x > 0 && input[pos - 1] != b'#' {
+                queue.push_back((steps + 1, (pos - 1)));
             }
-            if x < grid[y].len() - 1 && grid[y][x + 1] != '#' {
-                queue.push_back((steps + 1, (x + 1, y)));
+            if x < width - 1 && input[pos + 1] != b'#' {
+                queue.push_back((steps + 1, (pos + 1)));
             }
-            if y > 0 && grid[y - 1][x] != '#' {
-                queue.push_back((steps + 1, (x, y - 1)));
+            if y > 0 && input[pos - stride] != b'#' {
+                queue.push_back((steps + 1, pos - stride));
             }
-            if y < grid.len() - 1 && grid[y + 1][x] != '#' {
-                queue.push_back((steps + 1, (x, y + 1)));
+            if y < width - 1 && input[pos + stride] != b'#' {
+                queue.push_back((steps + 1, pos + stride));
             }
         }
 
-        targets.len()
+        visited.values().filter(|&v| v % 2 == 0).count()
     }
 }
 
