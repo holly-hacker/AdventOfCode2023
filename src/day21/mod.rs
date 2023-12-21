@@ -119,67 +119,87 @@ impl SolutionGold<usize, usize> for Day {
             };
 
         let first_grid_endpoints = calculate_grid_endpoints(start_position, 0, MAX_DISTANCE);
-        let odd_grids_endpoints = calculate_grid_endpoints(1, 0, usize::MAX);
-        let even_grids_endpoints = calculate_grid_endpoints(0, 0, usize::MAX);
 
-        // calculate the manhattan distance of to the last grid that is fully covered
-        // this is inclusive of the starting grid
-        // this crashes if there is the result should be 0
+        let (odd_grids_endpoints, even_grids_endpoints) = if start_position % 2 != 0 {
+            debug_assert_eq!(
+                first_grid_endpoints,
+                calculate_grid_endpoints(0, 0, usize::MAX)
+            );
+            (
+                calculate_grid_endpoints(1, 0, usize::MAX),
+                first_grid_endpoints,
+            )
+        } else {
+            debug_assert_eq!(
+                first_grid_endpoints,
+                calculate_grid_endpoints(1, 0, usize::MAX)
+            );
+            (
+                first_grid_endpoints,
+                calculate_grid_endpoints(0, 0, usize::MAX),
+            )
+        };
+
+        // the amount of grids we crossed if we went straight in 1 direction
+        let total_grid_count_excluding_start = (MAX_DISTANCE + width - (width / 2 + 1)) / width;
+
+        // how far we get into the final grid if we were to go straight. this final grid is not
+        // fully covered by our search.
         let distance_into_corner_grid = (MAX_DISTANCE + width - (width / 2 + 1)) % width;
 
-        // the amount of grids we covered in 1 direction. includes start grid
-        let total_grid_distance_without_start = (MAX_DISTANCE + width - (width / 2 + 1)) / width;
+        // if we went past the halfway point of the corner grid, the grid before this is also not
+        // covered
+        let corner_covers_two_grids = distance_into_corner_grid < (width / 2);
 
-        // how many of the outer grids are incomplete
-        // this is usually 1, but can be 2 if we travel less than half the tiles into the last grid
-        let tip_is_under_half_len = distance_into_corner_grid < (width / 2);
-
-        let complete_grids_distance_without_start = total_grid_distance_without_start
-            .saturating_sub(if tip_is_under_half_len { 2 } else { 1 });
-        let complete_grids_distance_with_start = complete_grids_distance_without_start + 1; // TODO: start can be incomplete!
+        // the total amount of grids we crossed that we fully cover. This includes the start grid
+        // because it makes later math a bit easier.
+        let complete_grid_count_including_start = if corner_covers_two_grids {
+            total_grid_count_excluding_start - 1
+        } else {
+            total_grid_count_excluding_start
+        };
 
         // we know how many grids to travel, but we don't yet know how many targets we will find in
         // the outer grids
 
-        // 1 -> 1
-        // 2 -> 5 (1 + (1+3))
-        // 3 -> 13 (1 + (2*2) + (4*2)) -> 1 + 6*2
-        // 4 -> 25 (1 + (2*2) + (4*2) + (6*2)) -> 1 + 12*2
-        // 5 -> 41 (1 + (2*2) + (4*2) + (6*2) + (8*2)) -> 1 + 20*2
-        // 6 -> 61 (1 + (2*2) + (4*2) + (6*2) + (8*2) + (10*2)) -> 1 + 30*2
-        // 7 -> 85 (1 + (2*2) + (4*2) + (6*2) + (8*2) + (10*2) + (12*2)) -> 1 + 42*2
-        // 8 -> 113 (1 + (2*2) + (4*2) + (6*2) + (8*2) + (10*2) + (12*2) + (14*2)) -> 1 + 56*2
-
-        // seems to be 2n^2 + -2n + 1
-        // the amount of tiles that are covered by the manhattan distance, including the center
+        // calculate the total amount of fully covered grids. this is not technically needed, but we
+        // use it for an assertion later.
+        // Whether a tile is included depends on the manhattan distance from the center. The formula
+        // seems to be `2n^2 + -2n + 1`. This includes the center.
         let complete_grid_count =
-            (2 * complete_grids_distance_with_start * complete_grids_distance_with_start)
-                - (complete_grids_distance_with_start * 2)
+            (2 * complete_grid_count_including_start * complete_grid_count_including_start)
+                - (complete_grid_count_including_start * 2)
                 + 1;
 
-        let even_grid_count = (complete_grids_distance_with_start + 1) / 2;
+        // We actually nned this number to be split up into "even" and "odd" grids. This is because
+        // the grid has an odd size so the amount of reachable tiles is different for even and odd
+        // grids. The formula is `n*(n-1)*4`, where `n` is the amount of complete grids in 1
+        // direction.
+        let even_grid_count = (complete_grid_count_including_start + 1) / 2;
         let even_grid_count = even_grid_count * (even_grid_count - 1) * 4;
-        let odd_grid_count = complete_grids_distance_with_start / 2;
+        let odd_grid_count = complete_grid_count_including_start / 2;
         let odd_grid_count = odd_grid_count * odd_grid_count * 4;
 
         debug_assert_eq!(complete_grid_count, 1 + even_grid_count + odd_grid_count);
 
+        // The total amount of points we can end up at after the given walk distance.
         let inside_endpoints =
             even_grids_endpoints * even_grid_count + odd_grids_endpoints * odd_grid_count;
 
-        // calculate edges
-        // TODO: for small numbers
+        // Calculate the amount of endpoints for edges and corners that are not fully covered.
         let outer_corner_count = 1;
-        let inner_corner_count = if tip_is_under_half_len { 1 } else { 0 };
-        let outer_edge_count = if !tip_is_under_half_len {
-            total_grid_distance_without_start
+        let inner_corner_count = if corner_covers_two_grids { 1 } else { 0 };
+        let outer_edge_count = if corner_covers_two_grids {
+            total_grid_count_excluding_start - 1
         } else {
-            total_grid_distance_without_start.saturating_sub(1)
+            total_grid_count_excluding_start
         };
-        let inner_edge_count = outer_edge_count.saturating_sub(1);
+        let inner_edge_count = outer_edge_count - 1;
 
+        // We also need the distance to each of these corners and edges. These are the same for each
+        // group.
         let distance_to_outer_corner_grid =
-            width / 2 + 1 + width * total_grid_distance_without_start.saturating_sub(1);
+            width / 2 + 1 + width * total_grid_count_excluding_start.saturating_sub(1);
         let distance_to_inner_corner_grid = distance_to_outer_corner_grid.saturating_sub(width);
         let distance_to_outer_edge_grid = (width + 1) + width * (outer_edge_count - 1);
         let distance_to_inner_edge_grid = distance_to_outer_edge_grid - width;
@@ -189,6 +209,7 @@ impl SolutionGold<usize, usize> for Day {
         debug_assert!((distance_to_inner_edge_grid - (width + 1)) % width == 0);
         debug_assert!((distance_to_outer_edge_grid - (width + 1)) % width == 0);
 
+        // Now iterate over each corner/edge and calculate the amount of endpoints in them.
         let x_left = 0;
         let x_mid = width / 2;
         let x_right = width - 1;
@@ -285,11 +306,14 @@ impl SolutionGold<usize, usize> for Day {
         let edge_endpoints: usize = muls_distances_starts
             .into_iter()
             .map(|(multiplier, start_steps, start_position)| {
-                let in_grid = calculate_grid_endpoints(start_position, start_steps, MAX_DISTANCE);
-                in_grid * multiplier
+                if multiplier == 0 {
+                    return 0;
+                }
+                multiplier * calculate_grid_endpoints(start_position, start_steps, MAX_DISTANCE)
             })
             .sum();
 
+        // Add everything up.
         first_grid_endpoints + inside_endpoints + edge_endpoints
     }
 }
@@ -297,7 +321,6 @@ impl SolutionGold<usize, usize> for Day {
 #[test]
 fn test_silver_sample() {
     let output = Day::calculate_silver(Day::INPUT_SAMPLE);
-    // assert_eq!(16, output);
     assert_eq!(42, output);
 }
 
