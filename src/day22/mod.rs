@@ -247,8 +247,8 @@ fn test_gold_sample() {
     assert_eq!(7, output);
 }
 
-// #[test]
+#[test]
 fn test_gold_real() {
     let output = Day::calculate_gold(Day::INPUT_REAL);
-    assert_eq!(630129824772393, output);
+    assert_eq!(60558, output);
 }
