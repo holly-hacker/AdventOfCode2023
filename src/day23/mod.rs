@@ -1,10 +1,8 @@
-use std::{
-    cmp::{Ordering, Reverse},
-    collections::{BinaryHeap, VecDeque},
-};
+use core::panic;
+use std::collections::VecDeque;
 
-use ahash::{AHashMap, AHashSet};
-use petgraph::prelude::*;
+use ahash::AHashMap;
+use petgraph::{prelude::*, visit::NodeRef};
 
 use super::*;
 
@@ -175,15 +173,14 @@ impl SolutionGold<usize, usize> for Day {
             }
         }
 
-        // println!("Graph created: {graph:?}");
-        // println!("{:?}", petgraph::dot::Dot::with_config(&graph, &[]));
-
         // find the longest path from start to end
-        let mut queue = BinaryHeap::new();
+        // You'd expect to use a BinaryHeap or VecDequeue here, but we need an exhaustive search
+        // anyway. Just a vec is faster by almost 30%.
+        let mut queue = Vec::new();
         let first_item = QueueItem {
             position: first_node,
             steps: 0,
-            visited: AHashSet::from([first_node]),
+            visited: 1 << first_node.id().index(),
         };
         queue.push(first_item);
 
@@ -194,32 +191,25 @@ impl SolutionGold<usize, usize> for Day {
             visited,
         }) = queue.pop()
         {
-            let neighbors = graph.neighbors(position);
+            for edge_ref in graph.edges(position) {
+                let position = edge_ref.target();
 
-            for neighbor in neighbors {
-                let mut visited = visited.clone();
-                if !visited.insert(neighbor) {
+                let bit = 1 << position.id().index();
+                if visited & bit != 0 {
                     continue;
                 }
 
-                let edge = graph.find_edge(position, neighbor).unwrap();
-                let edge_weight = graph.edge_weight(edge).unwrap();
+                let steps = steps + edge_ref.weight();
 
-                let steps = steps + edge_weight;
-
-                if neighbor == end_node {
-                    if max_steps < steps {
-                        println!("new max steps: {}", steps);
-                        // dbg!(visited);
-                        max_steps = steps;
-                    }
+                if position == end_node {
+                    max_steps = max_steps.max(steps);
                     continue;
                 }
 
                 queue.push(QueueItem {
-                    position: neighbor,
+                    position,
                     steps,
-                    visited,
+                    visited: visited | bit,
                 });
             }
         }
@@ -228,23 +218,10 @@ impl SolutionGold<usize, usize> for Day {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
 struct QueueItem {
     position: NodeIndex<petgraph::graph::DefaultIx>,
     steps: usize,
-    visited: AHashSet<NodeIndex<petgraph::graph::DefaultIx>>,
-}
-
-impl Ord for QueueItem {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.steps.cmp(&other.steps)
-    }
-}
-
-impl PartialOrd for QueueItem {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
+    visited: u64,
 }
 
 #[test]
@@ -268,8 +245,5 @@ fn test_gold_sample() {
 #[test]
 fn test_gold_real() {
     let output = Day::calculate_gold(Day::INPUT_REAL);
-    assert_ne!(6222, output);
-    assert_ne!(5162, output);
-    assert_ne!(6318, output);
-    assert_ne!(6490, output);
+    assert_eq!(6802, output);
 }
