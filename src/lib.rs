@@ -74,9 +74,9 @@ pub trait SolutionSilver<TSilver: Display> {
 
     fn execute_silver() {
         let (output, time) = run_timed(|| Self::calculate_silver(Self::INPUT_SAMPLE));
-        println!("Day {:02}, silver (s) | {time:>10?} | {output}", Self::DAY);
+        println!("Day {:02}, silver (s) | {time:>11?} | {output}", Self::DAY);
         let (output, time) = run_timed(|| Self::calculate_silver(Self::INPUT_REAL));
-        println!("Day {:02}, silver     | {time:>10?} | {output}", Self::DAY);
+        println!("Day {:02}, silver     | {time:>11?} | {output}", Self::DAY);
 
         // println!("Day {:02} has no gold implementation", Self::DAY);
     }
