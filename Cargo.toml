@@ -9,6 +9,7 @@ edition = "2021"
 ahash = { version = "0.8.6", default-features = false, features = ["std"] }
 memchr = "2.6.4"
 paste = "1.0.14"
+petgraph = "0.6.4"
 
 [dev-dependencies]
 cfg-if = "1.0.0"
@@ -49,6 +50,7 @@ day19 = []
 day20 = []
 day21 = []
 day22 = []
+day23 = []
 default = [
     "day01",
     "day02",
@@ -72,6 +74,7 @@ default = [
     "day20",
     "day21",
     "day22",
+    "day23",
 ]
 profile = []
 
