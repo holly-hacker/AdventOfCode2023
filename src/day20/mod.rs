@@ -299,7 +299,7 @@ fn test_silver_real() {
 
 #[test]
 fn test_gold_sample() {
-    let output = Day::calculate_gold(Day::INPUT_SAMPLE);
+    let output = Day::calculate_gold(Day::INPUT_SAMPLE_GOLD);
     assert_eq!(usize::MAX, output);
 }
 
