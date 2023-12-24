@@ -100,12 +100,34 @@ c_1 + z_1 * t_1 = c_0 + z_0 * t_1
 c_2 + z_2 * t_2 = c_0 + z_0 * t_2
 c_3 + z_3 * t_3 = c_0 + z_0 * t_3
 
-I initially did a bunch of math to extract `x_0` and wrote a somewhat smart brute-forcer for `x_0`,
-but even after a search depth of >2.5m for `t`, it didnt find anything.
+# extract t_1 by subtracting the first equation from the second which eliminates a_0
+(a_2 + x_2 * t_2) - (a_1 + x_1 * t_1) = (a_0 + x_0 * t_2) - (a_0 + x_0 * t_1)
+a_2 + x_2 * t_2 - a_1 - x_1 * t_1 = a_0 + x_0 * t_2 - a_0 - x_0 * t_1
+a_2 - a_1 + x_2 * t_2 - x_1 * t_1 = x_0 * (t_2 - t_1)
 
-I'm still not sure what the "proper" method is, I may look into that later. I assume I need to
-brute-force the velocity (as that is the only thing that is semi-guaranteed to be fairly low), but
-I don't know how to extract that out of the equations above.
+t_1 = (a_1 - a_2 + t_2 * (x_0 - x_2)) / (x_0 - x_1)
+
+# we need an equation that has at most 1 unknown that is not {x,y,z}_0
+
+# somehow brute-force x_0, y_0, z_0. these probably have the lowest range of values
+# only one of of t_{n} and {a,b,c}_0 may be part the equation, the other unknowns should be
+# {x,y,z}_0.
+
+t_1 = (a_1 - a_2 + t_2 * (x_0 - x_2)) / (x_0 - x_1)
+t_1 = (b_1 - b_2 + t_2 * (y_0 - y_2)) / (y_0 - y_1)
+t_1 = (c_1 - c_2 + t_2 * (z_0 - z_2)) / (z_0 - z_1)
+
+(a_1 - a_2 + t_2 * (x_0 - x_2)) / (x_0 - x_1) = (b_1 - b_2 + t_2 * (y_0 - y_2)) / (y_0 - y_1)
+
+# solve for t_2 (thank you, wolfram alpha)
+t_2 = ((a_1 - a_2) * (y_0 - y_1) + b_2 * (x_0 - x_1) + b_1 * (x_1 - x_0))
+    / (x_2 * (y_0 - y_1) + x_0 * (y_1 - y_2) + x_1 * (y_2 - y_0))
+
+# additional formulas to calculate the rest
+x_0 = (-a_0 + a_2 + t_2*x_2) / t_2
+x_0 = (a_1 - a_2 + t_1 * x_1 - t_2 * x_2) / (t_1 - t_2)
+a_0 = a_1 + t_1 * (x_1 - x_0)
+
 */
 
 impl SolutionGold<usize, usize> for Day {
@@ -122,14 +144,14 @@ impl SolutionGold<usize, usize> for Day {
 
                 (
                     (
-                        p_x.trim().parse::<u64>().unwrap(),
-                        p_y.trim().parse::<u64>().unwrap(),
-                        p_z.trim().parse::<u64>().unwrap(),
+                        p_x.trim().parse::<f64>().unwrap(),
+                        p_y.trim().parse::<f64>().unwrap(),
+                        p_z.trim().parse::<f64>().unwrap(),
                     ),
                     (
-                        v_x.trim().parse::<i64>().unwrap(),
-                        v_y.trim().parse::<i64>().unwrap(),
-                        v_z.trim().parse::<i64>().unwrap(),
+                        v_x.trim().parse::<f64>().unwrap(),
+                        v_y.trim().parse::<f64>().unwrap(),
+                        v_z.trim().parse::<f64>().unwrap(),
                     ),
                 )
             })
@@ -137,63 +159,81 @@ impl SolutionGold<usize, usize> for Day {
 
         let ((a_1, b_1, c_1), (x_1, y_1, z_1)) = input[0];
         let ((a_2, b_2, c_2), (x_2, y_2, z_2)) = input[1];
-        let ((a_3, b_3, c_3), (x_3, y_3, z_3)) = input[2];
+        let ((a_3, b_3, _), (x_3, y_3, _)) = input[2];
 
-        use z3::ast;
-        let cfg = z3::Config::new();
-        let ctx = z3::Context::new(&cfg);
-        let t_1 = ast::Int::new_const(&ctx, "t_1");
-        let t_2 = ast::Int::new_const(&ctx, "t_2");
-        let t_3 = ast::Int::new_const(&ctx, "t_3");
-        let a_0 = ast::Int::new_const(&ctx, "a_0");
-        let b_0 = ast::Int::new_const(&ctx, "b_0");
-        let c_0 = ast::Int::new_const(&ctx, "c_0");
-        let x_0 = ast::Int::new_const(&ctx, "x_0");
-        let y_0 = ast::Int::new_const(&ctx, "y_0");
-        let z_0 = ast::Int::new_const(&ctx, "z_0");
-        let a_1 = ast::Int::from_u64(&ctx, a_1);
-        let b_1 = ast::Int::from_u64(&ctx, b_1);
-        let c_1 = ast::Int::from_u64(&ctx, c_1);
-        let x_1 = ast::Int::from_i64(&ctx, x_1);
-        let y_1 = ast::Int::from_i64(&ctx, y_1);
-        let z_1 = ast::Int::from_i64(&ctx, z_1);
-        let a_2 = ast::Int::from_u64(&ctx, a_2);
-        let b_2 = ast::Int::from_u64(&ctx, b_2);
-        let c_2 = ast::Int::from_u64(&ctx, c_2);
-        let x_2 = ast::Int::from_i64(&ctx, x_2);
-        let y_2 = ast::Int::from_i64(&ctx, y_2);
-        let z_2 = ast::Int::from_i64(&ctx, z_2);
-        let a_3 = ast::Int::from_u64(&ctx, a_3);
-        let b_3 = ast::Int::from_u64(&ctx, b_3);
-        let c_3 = ast::Int::from_u64(&ctx, c_3);
-        let x_3 = ast::Int::from_i64(&ctx, x_3);
-        let y_3 = ast::Int::from_i64(&ctx, y_3);
-        let z_3 = ast::Int::from_i64(&ctx, z_3);
+        let mut search_depth = 0;
+        loop {
+            search_depth += 1;
+            // println!("searching with depth {}", search_depth);
 
-        use std::ops::{Add, Mul};
-        use z3::ast::Ast;
-        let solver = z3::Solver::new(&ctx);
-        solver.assert(&a_1.add(&x_1.mul(&t_1))._eq(&(&a_0).add(&(&x_0).mul(&t_1))));
-        solver.assert(&a_2.add(&x_2.mul(&t_2))._eq(&(&a_0).add(&(&x_0).mul(&t_2))));
-        solver.assert(&a_3.add(&x_3.mul(&t_3))._eq(&(&a_0).add(&(&x_0).mul(&t_3))));
+            // TODO: optimize this, we don't need to do inner values since we did them before
+            let range_x = -search_depth..=search_depth;
+            let range_y = -search_depth..=search_depth;
+            let range_z = -search_depth..=search_depth;
 
-        solver.assert(&b_1.add(&y_1.mul(&t_1))._eq(&(&b_0).add(&(&y_0).mul(&t_1))));
-        solver.assert(&b_2.add(&y_2.mul(&t_2))._eq(&(&b_0).add(&(&y_0).mul(&t_2))));
-        solver.assert(&b_3.add(&y_3.mul(&t_3))._eq(&(&b_0).add(&(&y_0).mul(&t_3))));
+            for x_0 in range_x.clone() {
+                for y_0 in range_y.clone() {
+                    for z_0 in range_z.clone() {
+                        let x_0 = x_0 as f64;
+                        let y_0 = y_0 as f64;
+                        let z_0 = z_0 as f64;
 
-        solver.assert(&c_1.add(&z_1.mul(&t_1))._eq(&(&c_0).add(&(&z_0).mul(&t_1))));
-        solver.assert(&c_2.add(&z_2.mul(&t_2))._eq(&(&c_0).add(&(&z_0).mul(&t_2))));
-        solver.assert(&c_3.add(&z_3.mul(&t_3))._eq(&(&c_0).add(&(&z_0).mul(&t_3))));
+                        let t_2_xy =
+                            ((a_1 - a_2) * (y_0 - y_1) + b_2 * (x_0 - x_1) + b_1 * (x_1 - x_0))
+                                / (x_2 * (y_0 - y_1) + x_0 * (y_1 - y_2) + x_1 * (y_2 - y_0));
 
-        let result = solver.check();
-        assert_eq!(result, z3::SatResult::Sat);
+                        let t_2_xz =
+                            ((a_1 - a_2) * (z_0 - z_1) + c_2 * (x_0 - x_1) + c_1 * (x_1 - x_0))
+                                / (x_2 * (z_0 - z_1) + x_0 * (z_1 - z_2) + x_1 * (z_2 - z_0));
 
-        let model = solver.get_model().unwrap();
-        let a_0_value = model.eval(&a_0, true).unwrap().as_i64().unwrap();
-        let b_0_value = model.eval(&b_0, true).unwrap().as_i64().unwrap();
-        let c_0_value = model.eval(&c_0, true).unwrap().as_i64().unwrap();
+                        let t_2_yz =
+                            ((b_1 - b_2) * (z_0 - z_1) + c_2 * (y_0 - y_1) + c_1 * (y_1 - y_0))
+                                / (y_2 * (z_0 - z_1) + y_0 * (z_1 - z_2) + y_1 * (z_2 - z_0));
 
-        (a_0_value + b_0_value + c_0_value) as usize
+                        let diff_xy_xz = (t_2_xy - t_2_xz).abs();
+                        let diff_xy_yz = (t_2_xy - t_2_yz).abs();
+                        let diff_xz_yz = (t_2_xz - t_2_yz).abs();
+
+                        if diff_xy_yz < 0.01 && diff_xy_xz < 0.01 && diff_xz_yz < 0.01 {
+                            // println!("found matching t_2 value: {x_0}, {y_0}, {z_0} -> {t_2_xy}");
+                            // return 0;
+                        } else {
+                            continue;
+                        }
+
+                        let t_2 = t_2_xy;
+
+                        // calculate t_1
+                        let t_1_x = (a_1 - a_2 + t_2 * (x_0 - x_2)) / (x_0 - x_1);
+                        let t_1 = t_1_x;
+
+                        // TODO: for some reason, this results in a wrong result for sample but
+                        // correct for the real input. why? has I ever?
+                        // let t_3_x = (a_3 - a_2 + t_2 * (x_0 - x_2)) / (x_0 - x_3);
+                        // let t_3 = t_3_x;
+
+                        let t_3_xy =
+                            ((a_1 - a_3) * (y_0 - y_1) + b_3 * (x_0 - x_1) + b_1 * (x_1 - x_0))
+                                / (x_3 * (y_0 - y_1) + x_0 * (y_1 - y_3) + x_1 * (y_3 - y_0));
+                        let t_3 = t_3_xy;
+
+                        let a_0_1 = a_1 + t_1 * (x_1 - x_0);
+                        let a_0_3 = a_3 + t_3 * (x_3 - x_0);
+
+                        if a_0_1 == a_0_3 {
+                            // println!("found matching a_0 value!: {x_0}, {y_0}, {z_0} -> t1={t_1}, t2={t_2}, t3={t_3}");
+                            // dbg!(t_1_x, t_1_y, t_1_z);
+
+                            let a_0 = a_0_1;
+                            let b_0 = b_1 + t_1 * (y_1 - y_0);
+                            let c_0 = c_1 + t_1 * (z_1 - z_0);
+
+                            return (a_0 + b_0 + c_0) as usize;
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
