@@ -52,6 +52,7 @@ day21 = []
 day22 = []
 day23 = []
 day24 = []
+day25 = []
 default = [
     "day01",
     "day02",
@@ -77,6 +78,7 @@ default = [
     "day22",
     "day23",
     "day24",
+    "day25",
 ]
 profile = []
 
