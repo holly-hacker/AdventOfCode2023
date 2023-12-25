@@ -1,4 +1,5 @@
 use ahash::AHashMap;
+use petgraph::{algo, prelude::*};
 
 use super::*;
 
@@ -10,117 +11,87 @@ impl SolutionSilver<usize> for Day {
     const INPUT_REAL: &'static str = include_str!("input_real.txt");
 
     fn calculate_silver(input: &str) -> usize {
-        let input = input
-            .lines()
-            .map(|l| {
-                let (wire, targets) = l.split_once(": ").unwrap();
-                let targets = targets.split(' ').collect::<Vec<_>>();
-                (wire, targets)
-            })
-            .collect::<Vec<_>>();
-
+        let mut graph = UnGraph::<&str, ()>::default();
         let mut graph_nodes = AHashMap::new();
-        let mut graph = petgraph::graph::UnGraph::<&str, ()>::new_undirected();
 
-        // add nodes
-        for line in &input {
-            let (wire, targets) = line;
-            if !graph_nodes.contains_key(wire) {
-                graph_nodes.insert(wire, graph.add_node(wire));
+        // parse input
+        input.lines().for_each(|line| {
+            let (wire, targets) = line.split_once(": ").unwrap();
+
+            let wire_idx = *graph_nodes
+                .entry(wire)
+                .or_insert_with(|| graph.add_node(wire));
+
+            for target in targets.split(' ') {
+                let target_idx = *graph_nodes
+                    .entry(target)
+                    .or_insert_with(|| graph.add_node(target));
+
+                graph.add_edge(wire_idx, target_idx, ());
             }
+        });
 
-            for target in targets {
-                if !graph_nodes.contains_key(target) {
-                    graph_nodes.insert(target, graph.add_node(target));
-                }
-            }
-        }
-
-        // add edges
-        for line in &input {
-            let (wire, targets) = line;
-            for target in targets {
-                let target_idx = graph_nodes.get(target).unwrap();
-                graph.add_edge(*graph_nodes.get(wire).unwrap(), *target_idx, ());
-            }
-        }
-
+        // for each node, find the max distance to any other node
         let max_distances = graph_nodes
             .iter()
             .map(|(node, node_id)| {
-                let x = petgraph::algo::dijkstra(&graph, *node_id, None, |_| 1);
-                (node, *x.values().max().unwrap())
+                let x = algo::dijkstra(&graph, *node_id, None, |_| 1);
+                (*node, *x.values().max().unwrap())
             })
             .collect::<Vec<_>>();
 
-        let lowest_max_distance = max_distances.iter().map(|(_, v)| v).min().unwrap();
+        // find the nodes that have the lowest max distance. these are likely to connect the 2
+        // subgraphs together
+        let lowest_max_distance = max_distances.iter().map(|(_, v)| *v).min().unwrap();
         let lowest_max_distance = max_distances
-            .iter()
-            .filter(|(_, v)| v == lowest_max_distance)
+            .into_iter()
+            .filter(|(_, v)| *v == lowest_max_distance)
             .map(|(k, _)| k)
             .collect::<Vec<_>>();
 
-        // dbg!(&lowest_max_distance);
-
+        // for all the candidates we found, get their neighbours
         let to_loop = lowest_max_distance
             .into_iter()
             .map(|k| {
                 (
-                    graph_nodes[*k],
-                    graph.neighbors(graph_nodes[*k]).collect::<Vec<_>>(),
+                    graph_nodes[k],
+                    graph.neighbors(graph_nodes[k]).collect::<Vec<_>>(),
                 )
             })
             .collect::<Vec<(_, _)>>();
 
-        // dbg!(&to_loop);
-
-        // let group_lens = to_loop.iter().enumerate().flat_map(|(index, item)| {
-        //     // todo
-        // });
-
-        for i in (0..to_loop.len()).rev() {
-            for j in ((i + 1)..to_loop.len()).rev() {
-                for k in ((j + 1)..to_loop.len()).rev() {
+        // take a combination of 3 candidates, ...
+        for i in 0..to_loop.len() {
+            for j in (i + 1)..to_loop.len() {
+                for k in (j + 1)..to_loop.len() {
                     let (node_i_idx, node_i_targets) = &to_loop[i];
                     let (node_j_idx, node_j_targets) = &to_loop[j];
                     let (node_k_idx, node_k_targets) = &to_loop[k];
 
+                    // ... remove an edge for each, ...
                     for i_target in node_i_targets {
                         let i_edge = graph.find_edge(*node_i_idx, *i_target);
                         debug_assert!(i_edge.is_some());
                         graph.remove_edge(i_edge.unwrap());
 
                         for j_target in node_j_targets {
-                            let j_edge = graph.find_edge(*node_j_idx, *j_target);
-                            let Some(j_edge) = j_edge else {
+                            let Some(j_edge) = graph.find_edge(*node_j_idx, *j_target) else {
                                 continue;
                             };
                             graph.remove_edge(j_edge);
-                            for k_target in node_k_targets {
-                                let k_edge = graph.find_edge(*node_k_idx, *k_target);
 
-                                let Some(k_edge) = k_edge else {
+                            for k_target in node_k_targets {
+                                let Some(k_edge) = graph.find_edge(*node_k_idx, *k_target) else {
                                     continue;
                                 };
                                 graph.remove_edge(k_edge);
 
-                                if petgraph::algo::connected_components(&graph) == 2 {
-                                    // println!("Found a loop!");
-                                    // println!(
-                                    //     "Found a loop, removed {}-{}, {}-{}, {}-{}",
-                                    //     graph.node_weight(*node_i_idx).unwrap(),
-                                    //     graph.node_weight(*i_target).unwrap(),
-                                    //     graph.node_weight(*node_j_idx).unwrap(),
-                                    //     graph.node_weight(*j_target).unwrap(),
-                                    //     graph.node_weight(*node_k_idx).unwrap(),
-                                    //     graph.node_weight(*k_target).unwrap(),
-                                    // );
-
-                                    // kinda lazy lol
-                                    let len =
-                                        petgraph::algo::dijkstra(&graph, *node_i_idx, None, |_| 1)
-                                            .len();
-                                    return len * (graph.node_count() - len);
+                                // ... and see if we now have 2 subgraphs
+                                if algo::connected_components(&graph) == 2 {
+                                    let group_1_size =
+                                        algo::dijkstra(&graph, *node_i_idx, None, |_| 1).len();
+                                    let group_2_size = graph.node_count() - group_1_size;
+                                    return group_1_size * group_2_size;
                                 }
 
                                 graph.add_edge(*k_target, *node_k_idx, ());
@@ -133,7 +104,7 @@ impl SolutionSilver<usize> for Day {
             }
         }
 
-        0 // todo!()
+        unreachable!("no solution found")
     }
 }
 
